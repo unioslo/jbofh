@@ -1,5 +1,5 @@
 /*
- * Copyright 2002, 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2010 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -31,20 +31,21 @@ import java.text.ParseException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
+import jline.ConsoleReader;
 
 import org.apache.log4j.Category;
-import org.gnu.readline.Readline;
 
 
 /**
  *
- * @author  runefro
+ * @author  runefro, hamar
  */
 public class CommandLine {
     Category logger;
     JBofh jbofh;
     Timer timer;
     IdleTerminatorTask terminatorTask;
+    ConsoleReader consolereader;
 
     /**
      * <code>IdleTerminatorTask</code> is used to terminate the
@@ -96,13 +97,19 @@ public class CommandLine {
         timer.schedule(terminatorTask, 1000, 60*1000);
 
         if(! (jbofh != null && jbofh.guiEnabled)) {
-            Readline.initReadline("myapp");
+            try {
+                this.consolereader = new ConsoleReader();
+            }
+            catch (IOException e) {
+                System.err.println("Could not open jLine library: " + e);
+                System.exit(1);
+            }
             this.logger = logger;
-            Runtime.getRuntime().addShutdownHook(new Thread() {
+            /*Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
-                        Readline.cleanup();
+                        //Readline.cleanup();
                     }
-                });
+                });*/
         }
     }
 
@@ -171,15 +178,24 @@ public class CommandLine {
         while (true) {
             // A readline thingy where methods were non-static would have helped a lot.
             terminatorTask.startWaiting();
-            String ret =  Readline.readline(prompt, addHist);
+            consolereader.setUseHistory(addHist);
+            String ret = consolereader.readLine(prompt);
             terminatorTask.stopWaiting();
-            if(ret == null) ret = "";
             return ret;
         }
     }
     
     Vector getSplittedCommand() throws IOException, ParseException {
-        return splitCommand(promptArg((String)jbofh.props.get("console_prompt"), true));
+        String line = promptArg((String)jbofh.props.get("console_prompt"), true);
+        if (line == null)
+            return null;
+        return splitCommand(line);
+    }
+
+    public void setCompleter(jline.Completor c) {
+        if (!jbofh.guiEnabled)  {
+            consolereader.addCompletor(c);
+        }
     }
 
     public static void main(String[] args) {

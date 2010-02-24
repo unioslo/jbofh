@@ -1,5 +1,5 @@
 /*
- * Copyright 2002, 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2010 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -43,8 +43,6 @@ import java.util.Vector;
 
 import org.apache.log4j.Category;
 import org.apache.log4j.PropertyConfigurator;
-import org.gnu.readline.Readline;
-import org.gnu.readline.ReadlineLibrary;
 
 import com.sun.java.text.PrintfFormat;
 
@@ -111,15 +109,6 @@ public class JBofh {
         hideRepeatedHeaders = (intHide != null && intHide.equals("true")
                                ) ? true : false;
 
-        if(! gui) {
-	        // Setup ReadLine routines
-	        try {
-	            Readline.load(ReadlineLibrary.GnuReadline);
-	        }
-	        catch (UnsatisfiedLinkError ignore_me) {
-	            showMessage("couldn't load readline lib. Using simple stdin.", true);
-	        }
-        }
         int idleWarnDelay = 0;
         int idleTerminateDelay = 0;
         try {
@@ -180,7 +169,7 @@ public class JBofh {
 
     public boolean login(String uname, String password) throws BofhdException {
         try {
-            if(uname == null) {
+            while(uname == null) {
                 uname = cLine.promptArg("Username: ", false);
             }
 
@@ -194,7 +183,8 @@ public class JBofh {
                         return false;
                     }
                 } else {
-                    password = cp.getPassword(prompt);
+                    //password = cp.getPassword(prompt);
+                    password = cLine.consolereader.readLine(prompt, new Character('*'));
                 }
             }
             if(password == null) return false;
@@ -224,7 +214,7 @@ public class JBofh {
         /* We don't want completion for quit
            v.set(0, new String("quit"));
            bcompleter.addCompletion(v, ""); */
-        Readline.setCompleter(bcompleter);
+        cLine.setCompleter(bcompleter);
 
         knownFormats = new Hashtable();
     }
@@ -258,6 +248,11 @@ public class JBofh {
         try {
             bcompleter.setEnabled(true);
             args = cLine.getSplittedCommand();
+            if (args == null) {
+                if(guiEnabled && (! mainFrame.confirmExit()))
+                    return true;
+                return false;
+            }
         } catch (IOException io) {
             if(guiEnabled && (! mainFrame.confirmExit()))
                 return true;
@@ -287,213 +282,215 @@ public class JBofh {
         return true;
     }
 
-    private boolean handleNativeComands(Vector args, boolean sourcing) throws BofhdException {
-        if(((String) args.get(0)).equals("commands")) {  // Neat while debugging
-            for (Enumeration e = bc.commands.keys() ; e.hasMoreElements() ;) {
-                Object key = e.nextElement();
-                showMessage(key+" -> "+ bc.commands.get(key), true); 
-            }
-        } else if(((String) args.get(0)).equals("quit")) {
-            bye();
-        } else if(((String) args.get(0)).equals("script")) {
-            if(args.size() == 1) {
-                if(script_file == null) { 
-                    throw new BofhdException("Must specify output filename");
-                } else {
-                    try {
-                        script_file.close();
-                        script_file = null;
-                    } catch (IOException e) {
-                        throw new BofhdException("Error closing file: "+e.getMessage());
+        private boolean handleNativeComands(Vector args, boolean sourcing) throws BofhdException {
+            if(((String) args.get(0)).equals("commands")) {  // Neat while debugging
+                for (Enumeration e = bc.commands.keys() ; e.hasMoreElements() ;) {
+                    Object key = e.nextElement();
+                    showMessage(key+" -> "+ bc.commands.get(key), true); 
+                }
+            } else if(((String) args.get(0)).equals("quit")) {
+                bye();
+            } else if(((String) args.get(0)).equals("script")) {
+                if(args.size() == 1) {
+                    if(script_file == null) { 
+                        throw new BofhdException("Must specify output filename");
+                    } else {
+                        try {
+                            script_file.close();
+                            script_file = null;
+                        } catch (IOException e) {
+                            throw new BofhdException("Error closing file: "+e.getMessage());
+                        }
+                        showMessage("Script file closed", true);
                     }
-                    showMessage("Script file closed", true);
+                } else {
+                    if(script_file != null)
+                        throw new BofhdException("Scriptfile already active");
+                    try {
+                        script_file = new FileWriter((String) args.get(1));
+                    } catch (IOException e) {
+                        throw new BofhdException("Error creating file: "+e.getMessage());
+                    }
+                    showMessage("Script file started.  Run script with no args to close file", true);
                 }
+            } else if(((String) args.get(0)).equals("source")) {
+                if(args.size() == 1) {
+                    showMessage("Must specify filename to source", true);
+                } else {
+                    boolean stop_on_error = true;
+                    // --ignore-errors  from GNU Coding Standards
+                    String fname = (String) args.get(1);
+                    if(args.size() == 3) {
+                        if("--ignore-errors".equals(args.get(1)))
+                            stop_on_error = false;
+                        fname = (String) args.get(2);
+                    }
+                    sourceFile(fname, stop_on_error);
+                }
+            } else if(((String) args.get(0)).equals("help")) {
+                args.remove(0);
+                showMessage(bc.getHelp(args), true);
             } else {
-                if(script_file != null)
-                    throw new BofhdException("Scriptfile already active");
-                try {
-                    script_file = new FileWriter((String) args.get(1));
-                } catch (IOException e) {
-                    throw new BofhdException("Error creating file: "+e.getMessage());
-                }
-                showMessage("Script file started.  Run script with no args to close file", true);
+                return false;
             }
-        } else if(((String) args.get(0)).equals("source")) {
-            if(args.size() == 1) {
-                showMessage("Must specify filename to source", true);
-            } else {
-                boolean stop_on_error = true;
-                // --ignore-errors  from GNU Coding Standards
-                String fname = (String) args.get(1);
-                if(args.size() == 3) {
-                    if("--ignore-errors".equals(args.get(1)))
-                        stop_on_error = false;
-                    fname = (String) args.get(2);
-                }
-                sourceFile(fname, stop_on_error);
-            }
-        } else if(((String) args.get(0)).equals("help")) {
-            args.remove(0);
-            showMessage(bc.getHelp(args), true);
-        } else {
-            return false;
+            return true;
         }
-        return true;
-    }
-    
-    private void runCommand(Vector args, boolean sourcing) 
-        throws BofhdException {
-        if (handleNativeComands(args, sourcing)) return;
-        String protoCmd;
-        Vector protoArgs;
-        try {
-            Vector lst = bcompleter.analyzeCommand(args, -1);
-            protoCmd = (String) lst.get(lst.size() - 1);
-            protoArgs = new Vector(
-                args.subList(lst.size()-1, args.size()));
-        } catch (AnalyzeCommandException e) {
-            if (sourcing) throw new BofhdException(e.getMessage());
-            showMessage(e.getMessage(), true); return;
-        }
-        if(! sourcing) {
-            protoArgs = checkArgs(protoCmd, protoArgs);
-            if(protoArgs == null) return;
-        }
-        try {
-            boolean multiple_cmds = false;
-            for (Enumeration e = protoArgs.elements() ; e.hasMoreElements() ;) 
-                if(e.nextElement() instanceof Vector)
-                    multiple_cmds = true;
-            if(guiEnabled && ! sourcing) mainFrame.showWait(true);
-            Object resp = bc.sendCommand(protoCmd, protoArgs);
-            if(resp != null) showResponse(protoCmd, resp, multiple_cmds, true);
-        } catch (BofhdException ex) {
-            if(sourcing) throw ex;
-            showMessage(ex.getMessage(), true);
-        } catch (Exception ex) {
-            showMessage("Unexpected error (bug): "+ex, true);
-            ex.printStackTrace();
-        } finally {
-            if(guiEnabled && ! sourcing) mainFrame.showWait(false);
-        }
-    }        
-            
-    void enterLoop() {
-        boolean keepLooping = true;
-        while(keepLooping) {
+        
+        private void runCommand(Vector args, boolean sourcing) 
+            throws BofhdException {
+            if (handleNativeComands(args, sourcing)) return;
+            String protoCmd;
+            Vector protoArgs;
             try {
-                keepLooping = processCmdLine();
+                Vector lst = bcompleter.analyzeCommand(args, -1);
+                protoCmd = (String) lst.get(lst.size() - 1);
+                protoArgs = new Vector(
+                    args.subList(lst.size()-1, args.size()));
+            } catch (AnalyzeCommandException e) {
+                if (sourcing) throw new BofhdException(e.getMessage());
+                showMessage(e.getMessage(), true); return;
+            }
+            if(! sourcing) {
+                protoArgs = checkArgs(protoCmd, protoArgs);
+                if(protoArgs == null) return;
+            }
+            try {
+                boolean multiple_cmds = false;
+                for (Enumeration e = protoArgs.elements() ; e.hasMoreElements() ;) 
+                    if(e.nextElement() instanceof Vector)
+                        multiple_cmds = true;
+                if(guiEnabled && ! sourcing) mainFrame.showWait(true);
+                Object resp = bc.sendCommand(protoCmd, protoArgs);
+                if(resp != null) showResponse(protoCmd, resp, multiple_cmds, true);
+            } catch (BofhdException ex) {
+                if(sourcing) throw ex;
+                showMessage(ex.getMessage(), true);
             } catch (Exception ex) {
                 showMessage("Unexpected error (bug): "+ex, true);
                 ex.printStackTrace();
+            } finally {
+                if(guiEnabled && ! sourcing) mainFrame.showWait(false);
             }
-        }
-        bye();
-    }
-
-    void sourceFile(String filename, boolean stop_on_error) {
-        if(guiEnabled) mainFrame.showWait(true);
-        try {
-            BufferedReader in = new BufferedReader(
-                new InputStreamReader(new FileInputStream(filename)));
-            String sin;
-            int lineno = 0;
-            Vector args;
-            while((sin = in.readLine()) != null) {
-                lineno++;
-                sin = sin.trim();
-                if(sin.startsWith("#") ||  sin.length() == 0)
-                    continue;
+        }        
+                
+        void enterLoop() {
+            boolean keepLooping = true;
+            while(keepLooping) {
                 try {
-                    args = cLine.splitCommand(sin);
-                } catch (ParseException ex) {
-                    showMessage("Error parsing command ("+sin+")", true); 
-                    if (stop_on_error) break;
-                    continue;
+                    keepLooping = processCmdLine();
+                } catch (Exception ex) {
+                    showMessage("Unexpected error (bug): "+ex, true);
+                    ex.printStackTrace();
                 }
-                showMessage(((String) props.get("console_prompt"))+sin, true);
-                try {
-                    runCommand(args, true);
-                } catch (BofhdException be) {
-                    showMessage(be.getMessage(), true);
-                    if (stop_on_error) {
-                        showMessage("Sourcing of "+filename+" aborted on line "+lineno, true);
-                        showMessage("Hint: Use 'source --ignore-errors fname' to ignore errors", true);
-                        break;                          
+            }
+            bye();
+        }
+
+        void sourceFile(String filename, boolean stop_on_error) {
+            if(guiEnabled) mainFrame.showWait(true);
+            try {
+                BufferedReader in = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(filename)));
+                String sin;
+                int lineno = 0;
+                Vector args;
+                while((sin = in.readLine()) != null) {
+                    lineno++;
+                    sin = sin.trim();
+                    if(sin.startsWith("#") ||  sin.length() == 0)
+                        continue;
+                    try {
+                        args = cLine.splitCommand(sin);
+                    } catch (ParseException ex) {
+                        showMessage("Error parsing command ("+sin+")", true); 
+                        if (stop_on_error) break;
+                        continue;
+                    }
+                    showMessage(((String) props.get("console_prompt"))+sin, true);
+                    try {
+                        runCommand(args, true);
+                    } catch (BofhdException be) {
+                        showMessage(be.getMessage(), true);
+                        if (stop_on_error) {
+                            showMessage("Sourcing of "+filename+" aborted on line "+lineno, true);
+                            showMessage("Hint: Use 'source --ignore-errors fname' to ignore errors", true);
+                            break;                          
+                        }
                     }
                 }
+            } catch (IOException io) {
+                showMessage("Error reading file: "+io.getMessage(), true);
             }
-        } catch (IOException io) {
-            showMessage("Error reading file: "+io.getMessage(), true);
+            if(guiEnabled) mainFrame.showWait(false);
         }
-        if(guiEnabled) mainFrame.showWait(false);
-    }
 
-    void bye() {
-        showMessage(props.getProperty("exit_message"), true);
-        try {
-            bc.logout();
-        } catch (BofhdException ex) { } // Ignore
-        System.exit(0);
-    }
+        void bye() {
+            showMessage(props.getProperty("exit_message"), true);
+            try {
+                bc.logout();
+            } catch (BofhdException ex) { } // Ignore
+            System.exit(0);
+        }
 
-   private boolean opt2bool(Object opt) {
-       return (opt instanceof Boolean && ((Boolean) opt).booleanValue()) ||
-               (opt instanceof Integer && ((Integer) opt).intValue() == 1);
-   }
-    
-    Vector checkArgs(String cmd, Vector args) throws BofhdException {
-        Vector ret = (Vector) args.clone();
-        Vector cmd_def = (Vector) bc.commands.get(cmd);
-        boolean did_prompt = false;
-        if(cmd_def.size() == 1) return ret;
-        Object pspec = cmd_def.get(1);
-        if (pspec instanceof String) {
-            if(! "prompt_func".equals(pspec)) {
-                throw new BofhdException("Bad param spec");
+       private boolean opt2bool(Object opt) {
+           return (opt instanceof Boolean && ((Boolean) opt).booleanValue()) ||
+                   (opt instanceof Integer && ((Integer) opt).intValue() == 1);
+       }
+        
+        Vector checkArgs(String cmd, Vector args) throws BofhdException {
+            Vector ret = (Vector) args.clone();
+            Vector cmd_def = (Vector) bc.commands.get(cmd);
+            boolean did_prompt = false;
+            if(cmd_def.size() == 1) return ret;
+            Object pspec = cmd_def.get(1);
+            if (pspec instanceof String) {
+                if(! "prompt_func".equals(pspec)) {
+                    throw new BofhdException("Bad param spec");
+                }
+                return processServerCommandPromptFunction(cmd, ret);
             }
-            return processServerCommandPromptFunction(cmd, ret);
-        }
-	for(int i = args.size(); i < ((Vector) pspec).size(); i++) {
-	    Hashtable param = (Hashtable) ((Vector) pspec).get(i);
-	    logger.debug("ps: "+i+" -> "+param);
-	    Object opt = param.get("optional");
-	    if(! did_prompt && opt2bool(opt))
-		break;  // If we have prompted, remain in prompt-mode also for optional args
-	    Object tmp = param.get("default");
-	    String defval = null;
-	    if(tmp != null) {
-		if(tmp instanceof String){
-		    defval = (String) tmp;
-		} else {
-		    ret.add(0, bc.sessid);
-		    ret.add(1, cmd);
-		    defval = (String) bc.sendRawCommand("get_default_param", ret, 0);
-		    ret.remove(0);
-		    ret.remove(0);
-		}
-	    }
-	    did_prompt = true;
-	    String prompt = (String) param.get("prompt");
-	    String type = (String) param.get("type");
-	    try {
-		String s;
-		if (type != null && type.equals("accountPassword")) {
-		    ConsolePassword cp = new ConsolePassword(mainFrame);
+        for(int i = args.size(); i < ((Vector) pspec).size(); i++) {
+            Hashtable param = (Hashtable) ((Vector) pspec).get(i);
+            logger.debug("ps: "+i+" -> "+param);
+            Object opt = param.get("optional");
+            if(! did_prompt && opt2bool(opt))
+            break;  // If we have prompted, remain in prompt-mode also for optional args
+            Object tmp = param.get("default");
+            String defval = null;
+            if(tmp != null) {
+            if(tmp instanceof String){
+                defval = (String) tmp;
+            } else {
+                ret.add(0, bc.sessid);
+                ret.add(1, cmd);
+                defval = (String) bc.sendRawCommand("get_default_param", ret, 0);
+                ret.remove(0);
+                ret.remove(0);
+            }
+            }
+            did_prompt = true;
+            String prompt = (String) param.get("prompt");
+            String type = (String) param.get("type");
+            try {
+            String s;
+            if (type != null && type.equals("accountPassword")) {
+                ConsolePassword cp = new ConsolePassword(mainFrame);
 
-		    if(guiEnabled) {
-			try {
-			    s = cp.getPasswordByJDialog(prompt + ">", JBofhFrame.frame);
-			} catch (MethodFailedException e) {
-			    s = "";
-			}
-		    } else {
-			s = cp.getPassword(prompt + ">");
-		    }
-		} else {
-		    bcompleter.setEnabled(false);
-		    s = cLine.promptArg(prompt+
+                if(guiEnabled) {
+                try {
+                    s = cp.getPasswordByJDialog(prompt + ">", JBofhFrame.frame);
+                } catch (MethodFailedException e) {
+                    s = "";
+                }
+                } else {
+                s = cLine.consolereader.readLine(prompt + ">", new Character('*'));
+                }
+            } else {
+                bcompleter.setEnabled(false);
+                s = cLine.promptArg(prompt+
 					(defval == null ? "" : " ["+defval+"]")+" >", false);
+            if (s == null)
+                return null;
 		}
 		if(defval != null && s.equals("")) {
 		    ret.add(defval);
@@ -553,6 +550,8 @@ public class JBofh {
                 bcompleter.setEnabled(false);
                 String s = cLine.promptArg((String) arginfo.get("prompt") +
                     (defval == null ? "" : " ["+defval+"]")+" >", false);
+                if (s == null)
+                    return null;
                 if(s.equals("") && defval == null) continue;
                 if(s.equals("?")) {
                     if(arginfo.get("help_ref") == null) {

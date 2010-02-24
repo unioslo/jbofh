@@ -1,5 +1,5 @@
 /*
- * Copyright 2004 University of Oslo, Norway
+ * Copyright 2004-2010 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -45,6 +45,7 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Vector;
+import java.util.ArrayList;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -93,49 +94,49 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
             } else if("clearline".equals(getValue(Action.NAME))) {
                 tfCmdLine.setText("");
             } else if("tab".equals(getValue(Action.NAME))) {
-                Vector completions = new Vector();
+                ArrayList completions = new ArrayList();
                 StringBuffer suggestions = new StringBuffer();
                 int nlines = 1;
-                for(int i=0; i < 100; i++) {
-                    String str = jbofh.bcompleter.completer("", i);
-                    if(str == null) {
-                        if(completions.size() == 1) {
-                            str = getCmdLineText();
-                            int loc = str.lastIndexOf(" ");
-                            tfCmdLine.setText(str.substring(0, loc+1)+completions.get(0)+" ");
-                        } else if(completions.size() == 0) {
-                            // No completions, do nothing (beeps are anoying)
-                        } else {
-                            // Complete as much as possible
-                            String common=""+completions.get(0);
-                            for(int j = 1; j < completions.size(); j++) {
-                                String tmp = (String) completions.get(j);
-                                int minLen = Math.min(tmp.length(), common.length());
+                jbofh.bcompleter.complete(
+                        getCmdLineText(), 
+                        tfCmdLine.getCaret().getDot(), 
+                        completions);
+                if(completions.size() == 1) {
+                    String str = getCmdLineText();
+                    int loc = str.lastIndexOf(" ");
+                    tfCmdLine.setText(str.substring(0, loc+1)+completions.get(0)+" ");
+                } else if(completions.size() == 0) {
+                    // No completions, do nothing (beeps are anoying)
+                } else {
+                    // Complete as much as possible
+                    String common=""+completions.get(0);
+                    for(int j = 1; j < completions.size(); j++) {
+                        String tmp = (String) completions.get(j);
+                        int minLen = Math.min(tmp.length(), common.length());
 
-                                for(int n = 0; n < minLen; n++) {
-                                    if(tmp.charAt(n) != common.charAt(n)) {
-                                        //System.out.println(n+" "+tmp+" "+common);
-                                        common = common.substring(0, n);
-                                        break;
-                                    }
-                                }
+                        for(int n = 0; n < minLen; n++) {
+                            if(tmp.charAt(n) != common.charAt(n)) {
+                                //System.out.println(n+" "+tmp+" "+common);
+                                common = common.substring(0, n);
+                                break;
                             }
-                            if(common.length() > 0) {
-                                str = getCmdLineText();
-                                int loc = str.lastIndexOf(" ");
-                                tfCmdLine.setText(str.substring(0, loc+1)+common);
-                            }
-                            showMessage(suggestions.toString(), true);
-                        }
-                        return;
-                    } else {
-                        completions.add(str);
-                        suggestions.append(str).append(" ");
-                        if(suggestions.length() > 80*nlines) {
-                            suggestions.append("\n");
-                            nlines++;
                         }
                     }
+                    if(common.length() > 0) {
+                        String str = getCmdLineText();
+                        int loc = str.lastIndexOf(" ");
+                        tfCmdLine.setText(str.substring(0, loc+1)+common);
+                    }
+                    for (Object o: completions) {
+                        if (suggestions.length() > 80*nlines) {
+                            suggestions.append("\n");
+                            ++nlines;
+                        } else if (suggestions.length() > 0) {
+                            suggestions.append(' ');
+                        }
+                        suggestions.append((String)o);
+                    }
+                    showMessage(suggestions.toString(), true);
                 }
             } else if("up".equals(getValue(Action.NAME))) {
                 if(historyLocation > 0 && cmdLineHistory.size() > 0) {

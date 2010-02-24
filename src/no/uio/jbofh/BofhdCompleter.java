@@ -1,5 +1,5 @@
 /*
- * Copyright 2002, 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2010 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -40,11 +40,11 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.Vector;
+import java.util.List;
 
 import org.apache.log4j.Category;
 import org.apache.log4j.PropertyConfigurator;
-import org.gnu.readline.Readline;
-import org.gnu.readline.ReadlineLibrary;
+import jline.Completor;
 
 import com.sun.java.text.PrintfFormat;
 
@@ -55,7 +55,7 @@ import com.sun.java.text.PrintfFormat;
  * @author  runefro
  */
 
-class BofhdCompleter implements org.gnu.readline.ReadlineCompleter {
+class BofhdCompleter implements Completor {
     JBofh jbofh;
     Vector possible;
     Iterator iter;
@@ -182,48 +182,35 @@ class BofhdCompleter implements org.gnu.readline.ReadlineCompleter {
         throw new RuntimeException("Internal error");  // Not reached
     }
 
-    public String completer(String str, int param) {
-        /*
-         * The readLine library gives too little information about the
-         * current line to get this correct as it does not seem to
-         * include information about where on the line the cursor is
-         * when tab is pressed, making it impossible to tab-complete
-         * within a line.
-         * 
-         **/
+    public int complete(String str, int cursor, List clist) {
         String cmdLineText;
-        if(jbofh.guiEnabled) {
-            cmdLineText = jbofh.mainFrame.getCmdLineText();
-        } else {
-            cmdLineText = Readline.getLineBuffer();
-        }
+        cmdLineText = str;
         if(! this.enabled) 
-            return null;
-        if(param == 0) {  // 0 -> first call to iterator
-            Vector args;
-            try {
-                args = jbofh.cLine.splitCommand(cmdLineText);
-            } catch (ParseException pe) {
-                iter = null;
-                return null;
-            }
-            int len = args.size();
-            if(! cmdLineText.endsWith(" ")) len--;
-            if(len < 0) len = 0;
-            if(len >= 2) {
-                iter = null;
-                return null;
-            }
-            try {
-                possible = analyzeCommand(args, len);
-                iter = possible.iterator();
-            } catch (AnalyzeCommandException e) {
-                logger.debug("Caught: ", e);
-                iter = null;
-            }
+            return 0;
+        Vector args;
+        try {
+            args = jbofh.cLine.splitCommand(cmdLineText);
+        } catch (ParseException pe) {
+            iter = null;
+            return 0;
         }
-        if(iter != null && iter.hasNext()) return (String) iter.next();
-        return null;
+        int len = args.size();
+        if(! cmdLineText.endsWith(" ")) len--;
+        if(len < 0) len = 0;
+        if(len >= 2) {
+            iter = null;
+            return 0;
+        }
+        try {
+            possible = analyzeCommand(args, len);
+            iter = possible.iterator();
+        } catch (AnalyzeCommandException e) {
+            logger.debug("Caught: ", e);
+            iter = null;
+        }
+        while (iter != null && iter.hasNext()) 
+            clist.add((String)iter.next() + ' ');
+        return str.lastIndexOf(" ", cursor) + 1;
     }
 }
 

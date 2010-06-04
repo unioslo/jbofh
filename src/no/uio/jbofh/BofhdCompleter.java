@@ -35,7 +35,7 @@ import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Enumeration;
-import java.util.Hashtable;
+import java.util.TreeMap;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.StringTokenizer;
@@ -60,14 +60,14 @@ class BofhdCompleter implements Completor {
     Vector possible;
     Iterator iter;
     Category logger;
-    Hashtable complete;
+    TreeMap complete;
     private boolean enabled;
 
     BofhdCompleter(JBofh jbofh, Category logger) {
         this.jbofh = jbofh;
         this.logger = logger;
         this.enabled = false;
-        complete = new Hashtable();
+        complete = new TreeMap();
         //buildCompletionHash();
     }
     
@@ -80,29 +80,29 @@ class BofhdCompleter implements Completor {
      */
     public void addCompletion(Vector cmd_parts, String target) 
         throws BofhdException{
-        Hashtable parent = complete;
+        TreeMap parent = complete;
         for(Enumeration e = cmd_parts.elements(); e.hasMoreElements(); ) {
             String protoCmd = (String) e.nextElement();
             Object tmp = parent.get(protoCmd);
             if(tmp == null) {
                 if(e.hasMoreElements()) {
-                    parent.put(protoCmd, tmp = new Hashtable());
-                    parent = (Hashtable) tmp;
+                    parent.put(protoCmd, tmp = new TreeMap());
+                    parent = (TreeMap) tmp;
                 } else {
                     parent.put(protoCmd, target);
                 }
             } else {
-                if(tmp instanceof Hashtable) {
+                if(tmp instanceof TreeMap) {
                     if(! e.hasMoreElements()) {
                         throw new BofhdException(
                             "Existing map target for"+cmd_parts);
                     }
-                    parent = (Hashtable) tmp;
+                    parent = (TreeMap) tmp;
                 } else {
                     if(e.hasMoreElements()) {
                         throw new BofhdException(
                             "Existing map target is not a "+
-                            "Hashtable for "+cmd_parts);
+                            "TreeMap for "+cmd_parts);
                     } else {
                         parent.put(protoCmd, target);
                     }
@@ -131,7 +131,7 @@ class BofhdCompleter implements Completor {
      */    
 
     public Vector analyzeCommand(Vector cmd, int expat) throws AnalyzeCommandException { 
-        Hashtable parent = complete;
+        TreeMap parent = complete;
         Vector cmdStack = new Vector();
         int lvl = 0;
 
@@ -140,9 +140,9 @@ class BofhdCompleter implements Completor {
             if (lvl < cmd.size()) this_cmd = (String) cmd.get(lvl);
             Vector thisLevel = new Vector();
 
-            for(Enumeration enumCompleter = parent.keys(); 
-                enumCompleter.hasMoreElements(); ) {
-                String this_key = (String) enumCompleter.nextElement();
+            for(Iterator enumCompleter = parent.keySet().iterator(); 
+                enumCompleter.hasNext(); ) {
+                String this_key = (String) enumCompleter.next();
                 if(this_cmd == null || this_key.startsWith(this_cmd)) {
                     thisLevel.add(this_key);
                     if(this_key.equals(this_cmd) && expat < 1) {
@@ -168,14 +168,14 @@ class BofhdCompleter implements Completor {
             String cmdPart = (String) thisLevel.get(0);
             cmdStack.add(cmdPart);
             Object tmp = parent.get(cmdPart);
-            if(!(tmp instanceof Hashtable)) {
+            if(!(tmp instanceof TreeMap)) {
                 if(expat < 0){
                     cmdStack.add(tmp);
                     return cmdStack;
                 }
                 return new Vector();  // No completions
             }
-            parent = (Hashtable) tmp;
+            parent = (TreeMap) tmp;
             lvl++;
         }
         logger.error("oops: analyzeCommand "+parent+", "+lvl+", "+expat);

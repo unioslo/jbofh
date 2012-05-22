@@ -90,7 +90,8 @@ class InternalTrustManager implements X509TrustManager {
             cert[i].checkValidity(date);
             parent.checkValidity(date);
             try {
-                cert[i].verify(parent.getPublicKey());
+                if (cert[i] != parent)
+                    cert[i].verify(parent.getPublicKey());
             } catch (Exception e) {
                 throw new CertificateException("Bad server certificate: "+e);
             }

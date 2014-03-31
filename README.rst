@@ -26,15 +26,17 @@ CA-certificates
 ----------------
 
 jBofh will include a ``cacerts.pem``-file in the jar-file, if it exists when
-building. If this file is not included, or if it needs to be replaced, it can be
-added to the jar-archive later with the python script `fix_jbofh_jar.py`_.
+running ``ant dist``. If this file is not included, or if it needs to be
+replaced, it can be added to the jar-archive later with the python script
+`fix_jbofh_jar.py`_.
 
 
 Settings
 ---------
 jBofh will include a ``jbofh.properties``-file in the jar-file, if it exists when
-building. If this file is not included, or if it needs to be replaced, it can be
-added to the jar-archive later with the python script `fix_jbofh_jar.py`_.
+running ``ant dist``. If this file is not included, or if it needs to be
+replaced, it can be added to the jar-archive later with the python script
+`fix_jbofh_jar.py`_.
 
 
 fix_jbofh_jar.py
@@ -50,6 +52,9 @@ Usage::
         The PROP file is a settings file. See jbofh.property in the root
         directory of this project.
 
+This script will add or replace the settings file and/or the CA certificate file
+in the jBofh jar archive. It will create a new jar archive ``jbofh_new.jar`` in
+the working directory.
 
 
 Installing jBofh

@@ -41,11 +41,16 @@ import sys
 import time
 
 
-def fix_file(jar_file, cert_file, property_file):
+def fix_file(jar_in, jar_out, cert_file, property_file):
     """ Copy ca-cert file and/or prop-file into the jar file.
 
-    @type jar_file: str
-    @param jar_file: filename of the jar-file
+    @type jar_in: str
+    @param jar_in: filename of the source jar-file
+
+    @type jar_out: str or NoneType
+    @param jar_out:
+        filename of the output jar-file. If None, we alter the L{jar_in} file
+        in place.
 
     @type cert_file: str or NoneType
     @param cert_file:
@@ -58,41 +63,46 @@ def fix_file(jar_file, cert_file, property_file):
         property file.
 
     """
+    if (not cert_file) and (not property_file):
+        raise SystemExit("Nothing to do.")
+
     jar = 'jar'
-    unzip = 'unzip'
-    new_file = 'jbofh_new.jar'
     tmp_dir = 'tmp_%s' % time.time()
 
-    # Make tmp work dir
-    os.mkdir(tmp_dir)
+    # Create a copy of the jar input file,
+    # or modify input file directly?
+    if jar_out:
+        shutil.copyfile(jar_in, jar_out)
+    else:
+        # In-place update
+        jar_out = jar_in
 
-    # Unzip jar to tmp_dir
-    cmd = [unzip, '-d', tmp_dir, jar_file]
-    ret = os.spawnvp(os.P_WAIT, unzip, cmd)
-    if ret != 0:
-        raise SystemExit("Error running: '%s'" % unzip)
+    os.mkdir(tmp_dir)
+    update_cmd = [jar, 'uf', jar_out]
 
     # Copy (replacement) files to tmp_dir
+    # We need to recreate the same directory and file name structure as we want
+    # the files to have in the jar archive.
     if property_file is not None:
-        shutil.copyfile(property_file, tmp_dir + '/jbofh.properties')
+        shutil.copyfile(property_file,
+                        os.path.join(tmp_dir, 'jbofh.properties'))
+        update_cmd.extend(['-C', tmp_dir, 'jbofh.properties'])
     if cert_file is not None:
-        shutil.copyfile(cert_file, tmp_dir + '/cacert.pem')
+        shutil.copyfile(cert_file, os.path.join(tmp_dir, 'cacert.pem'))
+        update_cmd.extend(['-C', tmp_dir, 'cacert.pem'])
 
-    # Repackage tmp_dir to jar
-    os.chdir(tmp_dir)
-    cmd = [jar, 'cf', '../%s' % new_file, '.']
-    ret = os.spawnvp(os.P_WAIT, jar, cmd)
+    # Update jar_out with the given files
+    ret = os.spawnvp(os.P_WAIT, jar, update_cmd)
     if ret != 0:
-        raise SystemExit("Error running: '%s'" % jar)
+        raise SystemExit("Error running: '%s'" % ' '.join(update_cmd))
 
-    print "New file: %s" % new_file
-    os.chdir('..')
+    print "New file: %s" % jar_out
     shutil.rmtree(tmp_dir)
 
 
 def usage():
-    """ Print usage string. """
-    print """Usage: fix_jbofh_jar.py [-c cert_file | -p property_file] jar_file
+    """ Return usage string. """
+    return """Usage: fix_jbofh_jar.py [-c cert_file | -p property_file] jar_file
 
 This utility is for people who want to update the JBofh.jar file
 without running ant.  It can replace the cacert.pem and
@@ -112,18 +122,17 @@ def main():
         elif opt in('-p', '--property-file'):
             property_file = val
         elif opt in('-h', '--help'):
-            usage()
-            sys.exit()
+            print usage()
+            raise SystemExit()
         else:
-            usage()
-            sys.exit()
+            raise SystemExit("Invalid arguments.\n" + usage())
+
     jar_file = sys.argv[-1]
     if not jar_file.endswith(".jar"):
-        usage()
-        sys.exit()
+        raise SystemExit("Invalid jar-file '%s'\n%s" % (jar_file, usage()))
 
     # Do the actual work
-    fix_file(jar_file, cert_file, property_file)
+    fix_file(jar_file, 'jbofh_new.jar', cert_file, property_file)
 
 if __name__ == '__main__':
     main()

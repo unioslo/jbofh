@@ -107,6 +107,7 @@ class InternalTrustManager implements X509TrustManager {
                 return;
             }
         }
+        throw new CertificateException("Bad server certificate: No CA match.");
     }
     
     public X509Certificate[] getAcceptedIssuers() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2010 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -26,27 +26,15 @@
 
 package no.uio.jbofh;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Enumeration;
 import java.util.TreeMap;
 import java.util.Iterator;
-import java.util.Properties;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Category;
-import org.apache.log4j.PropertyConfigurator;
 import jline.Completor;
 
-import com.sun.java.text.PrintfFormat;
 
 /**
  * Tab-completion utility for use with readline.  Also supports translation 
@@ -57,7 +45,7 @@ import com.sun.java.text.PrintfFormat;
 
 class BofhdCompleter implements Completor {
     JBofh jbofh;
-    Vector possible;
+    ArrayList possible;
     Iterator iter;
     Category logger;
     TreeMap complete;
@@ -78,14 +66,15 @@ class BofhdCompleter implements Completor {
     /**
      * {   'access': {   'disk': 'access_disk', ... } }
      */
-    public void addCompletion(Vector cmd_parts, String target) 
+    @SuppressWarnings("unchecked")
+    public void addCompletion(ArrayList cmd_parts, String target) 
         throws BofhdException{
         TreeMap parent = complete;
-        for(Enumeration e = cmd_parts.elements(); e.hasMoreElements(); ) {
-            String protoCmd = (String) e.nextElement();
+        for(Iterator e = (cmd_parts).iterator(); e.hasNext(); ) {
+            String protoCmd = (String) e.next();
             Object tmp = parent.get(protoCmd);
             if(tmp == null) {
-                if(e.hasMoreElements()) {
+                if(e.hasNext()) {
                     parent.put(protoCmd, tmp = new TreeMap());
                     parent = (TreeMap) tmp;
                 } else {
@@ -93,13 +82,13 @@ class BofhdCompleter implements Completor {
                 }
             } else {
                 if(tmp instanceof TreeMap) {
-                    if(! e.hasMoreElements()) {
+                    if(! e.hasNext()) {
                         throw new BofhdException(
                             "Existing map target for"+cmd_parts);
                     }
                     parent = (TreeMap) tmp;
                 } else {
-                    if(e.hasMoreElements()) {
+                    if(e.hasNext()) {
                         throw new BofhdException(
                             "Existing map target is not a "+
                             "TreeMap for "+cmd_parts);
@@ -129,16 +118,17 @@ class BofhdCompleter implements Completor {
      * @throws AnalyzeCommandException
      * @return list of completions, or translated commands
      */    
-
-    public Vector analyzeCommand(Vector cmd, int expat) throws AnalyzeCommandException { 
+    @SuppressWarnings("unchecked")
+    public ArrayList analyzeCommand(ArrayList cmd, int expat)
+            throws AnalyzeCommandException { 
         TreeMap parent = complete;
-        Vector cmdStack = new Vector();
+        ArrayList cmdStack = new ArrayList();
         int lvl = 0;
 
         while(expat < 0 || lvl <= expat) {
             String this_cmd = null;
             if (lvl < cmd.size()) this_cmd = (String) cmd.get(lvl);
-            Vector thisLevel = new Vector();
+            ArrayList thisLevel = new ArrayList();
 
             for(Iterator enumCompleter = parent.keySet().iterator(); 
                 enumCompleter.hasNext(); ) {
@@ -158,7 +148,7 @@ class BofhdCompleter implements Completor {
             if(thisLevel.size() != 1 || 
                 (expat < 0 && cmdStack.size() >= cmd.size())) {
                 if(expat < 0){
-                    if (thisLevel.size() == 0)
+                    if (thisLevel.isEmpty())
                         throw new AnalyzeCommandException("Unknown command");
                     throw new AnalyzeCommandException(
                         "Incomplete command, possible subcommands: "+thisLevel);
@@ -173,7 +163,7 @@ class BofhdCompleter implements Completor {
                     cmdStack.add(tmp);
                     return cmdStack;
                 }
-                return new Vector();  // No completions
+                return new ArrayList();  // No completions
             }
             parent = (TreeMap) tmp;
             lvl++;
@@ -181,13 +171,13 @@ class BofhdCompleter implements Completor {
         logger.error("oops: analyzeCommand "+parent+", "+lvl+", "+expat);
         throw new RuntimeException("Internal error");  // Not reached
     }
-
+    @SuppressWarnings("unchecked")
     public int complete(String str, int cursor, List clist) {
         String cmdLineText;
         cmdLineText = str;
         if(! this.enabled) 
             return 0;
-        Vector args;
+        ArrayList args;
         try {
             args = jbofh.cLine.splitCommand(cmdLineText);
         } catch (ParseException pe) {

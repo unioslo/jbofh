@@ -1,5 +1,5 @@
 /*
- * Copyright 2003, 2004 University of Oslo, Norway
+ * Copyright 2003-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -55,13 +55,11 @@ class ConsolePassword {
             "-c",
             "/bin/stty " + (on ? "echo" : "-echo") + " < /dev/tty"
         };
-        int exitcode = 0;
+        int exitcode;
         try {
             Process p = Runtime.getRuntime().exec(cmd);
             exitcode = p.waitFor();
-        } catch (IOException e) { 
-            exitcode = -1; 
-        } catch (InterruptedException e) { 
+        } catch (IOException | InterruptedException e) { 
             exitcode = -1; 
         }
         if(exitcode != 0) {
@@ -93,7 +91,7 @@ class ConsolePassword {
 
     class HidingThread extends Thread {
         private boolean keep_hiding = true;
-        private String prompt;
+        private final String prompt;
         public HidingThread(String prompt) {
             super();
             this.prompt = prompt;
@@ -101,9 +99,6 @@ class ConsolePassword {
         public void run() {
             while(keep_hiding) {
                 System.out.print("\r"+prompt+" \r"+prompt);
-                try {
-                    sleep(5);
-                }catch (InterruptedException e) { }
             }
         }
         public void stopHiding() {

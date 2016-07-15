@@ -1,5 +1,5 @@
 /*
- * Copyright 2002, 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -26,24 +26,24 @@
 
 package no.uio.jbofh;
 import java.io.IOException;
-import java.io.InputStream;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
+import java.util.Iterator;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.apache.log4j.Category;
-import org.apache.xmlrpc.XmlRpcClient;
+import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.XmlRpcException;
+import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
+import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 /**
  *
@@ -51,12 +51,15 @@ import org.apache.xmlrpc.XmlRpcException;
  */
 public class BofhdConnection {
     Category logger;
-    XmlRpcClient xmlrpc;
+    XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
+    XmlRpcClient xmlrpc = new XmlRpcClient();
     String sessid;
-    Hashtable commands;
+    HashMap commands;
     JBofh jbofh;
-    
-    /** Creates a new instance of BofdConnection */
+
+    /** Creates a new instance of BofdConnection
+     * @param log
+     * @param jbofh */
     public BofhdConnection(Category log, JBofh jbofh) {
         this.logger = log;
         this.jbofh = jbofh;
@@ -88,58 +91,66 @@ public class BofhdConnection {
                 SSLContext sc = SSLContext.getInstance("SSL");  // TLS?
                 sc.init(null,tma, null);
                 SSLSocketFactory sf1 = sc.getSocketFactory();
-                HttpsURLConnection.setDefaultSSLSocketFactory(sf1);     
-            } catch (Exception e) {
+                HttpsURLConnection.setDefaultSSLSocketFactory(sf1);
+                URL url = new URL(host_url);
+                HttpsURLConnection con =
+                                       (HttpsURLConnection)url.openConnection();
+                con.connect();
+                con.disconnect();
+            } catch (IOException | CertificateException |
+                    NoSuchAlgorithmException | KeyManagementException e) {
                 System.out.println("Error setting up SSL cert handling: "+e);
-                e.printStackTrace();
                 System.exit(0);
             }
         }
         try {
-            xmlrpc = new XmlRpcClient(host_url);
+            config.setServerURL(new URL(host_url));
+            xmlrpc.setConfig(config);
             // XmlRpc.setDebug(true);
-        } catch (java.net.MalformedURLException e) {
-            System.out.println("Bad url '"+host_url+"', check your property file");
+        } catch (Exception e) {
+            System.out.println(e.getMessage() + " Most probably Bad url '"
+                    + host_url + "',"
+                    + "check your property file");
             System.exit(0);
         }
     }
-    
+    @SuppressWarnings("unchecked")
     String login(String uname, String password) throws BofhdException {
-        Vector args = new Vector();
-        args.add(uname);
-        args.add(password);
+        ArrayList args = new ArrayList();
+        args.add(0, uname);
+        args.add(1, password);
         String newsessid = (String) sendRawCommand("login", args, -1);
         logger.debug("Login ret: "+newsessid);
         this.sessid = newsessid;
         return newsessid;
     }
-
+    @SuppressWarnings("unchecked")
     String getMotd(String version) throws BofhdException {
-        Vector args = new Vector();
+        ArrayList args = new ArrayList();
         args.add("jbofh");
         args.add(version);
         String msg = (String) sendRawCommand("get_motd", args, -1);
         return msg;
     }
-    
+    @SuppressWarnings("unchecked")
     String logout() throws BofhdException {
-        Vector args = new Vector();
+        ArrayList args = new ArrayList();
         args.add(sessid);
         return (String) sendRawCommand("logout", args, 0);
     }
-
+    @SuppressWarnings("unchecked")
     void updateCommands() throws BofhdException {
-        Vector args = new Vector();
+        ArrayList args = new ArrayList();
         args.add(sessid);
-        commands = (Hashtable) sendRawCommand("get_commands", args, 0);
+        commands = (HashMap) sendRawCommand("get_commands", args, 0);
     }
-    
-    String getHelp(Vector args) throws BofhdException {
+    @SuppressWarnings("unchecked")
+    String getHelp(ArrayList args) throws BofhdException {
         args.add(0, sessid);
         return (String) sendRawCommand("help", args, 0);
     }
-    
-    Object sendCommand(String cmd, Vector args) throws BofhdException {
+    @SuppressWarnings("unchecked")
+    Object sendCommand(String cmd, ArrayList args) throws BofhdException {
         args.add(0, sessid);
         args.add(1, cmd);
         return sendRawCommand("run_command", args, 0);
@@ -163,20 +174,27 @@ public class BofhdConnection {
      * @param o the object to wash
      * @return the washed object
      */
+    @SuppressWarnings("unchecked")
     Object washResponse(Object o) {
-        if(o instanceof Vector) {
-            Vector ret = new Vector();
-            for (Enumeration e = ((Vector) o).elements() ; e.hasMoreElements() ;) {
-                ret.add(washResponse(e.nextElement()));
+        if(o instanceof ArrayList || o instanceof Object[]) {
+            ArrayList ret = new ArrayList();
+            Object[] o_arr = (Object[]) o;
+            ArrayList o_arr_list = new ArrayList(Arrays.asList(o_arr));
+            for (Iterator e = o_arr_list.iterator() ; e.hasNext() ;) {
+                ret.add(washResponse(e.next()));
             }
             return ret;
         } else if(o instanceof String) {
             return washSingleObject((String) o);
-        } else if(o instanceof Hashtable) {
-            Hashtable ret = new Hashtable();
-            for (Enumeration e = ((Hashtable) o).keys (); e.hasMoreElements (); ) {
-                Object key = e.nextElement();
-                ret.put(key, washResponse(((Hashtable) o).get(key)));
+        } else if(o instanceof Integer) {
+            return o;
+        } else if(o instanceof HashMap) {
+            HashMap ret = new HashMap();
+            for (Iterator e =
+                    (((HashMap) o).keySet().iterator());
+                    e.hasNext(); ) {
+                Object key = e.next();
+                ret.put(key, washResponse(((HashMap) o).get(key)));
             }
             return ret;
         } else {
@@ -184,7 +202,8 @@ public class BofhdConnection {
         }
     }
 
-    Object sendRawCommand(String cmd, Vector args, int sessid_loc) throws BofhdException {
+    Object sendRawCommand(String cmd, ArrayList args, int sessid_loc)
+                                                        throws BofhdException {
         return sendRawCommand(cmd, args, false, sessid_loc);
     }
 
@@ -201,27 +220,29 @@ public class BofhdConnection {
     }
     /**
      * Handle bofhds extensions to XML-RPC by pre-prosessing the
-     * arguments.  Since we only send String (or Vector with
+     * arguments.  Since we only send String (or ArrayList with
      * String), we don't support the other extensions.
+     * (Not sure how much this is needed since all arguments er strongly typed)
      *
-     * @param args a <code>Vector</code> representing the arguments
+     * @param args a <code>ArrayList</code> representing the arguments
      */
-    void washCommandArgs(Vector args) throws BofhdException {
+    @SuppressWarnings("unchecked")
+    void washCommandArgs(ArrayList args) throws BofhdException {
         for (int i = args.size()-1; i >= 0; i--) {
             Object tmp = args.get(i);
             if (tmp instanceof String) {
                 if (((String) tmp).length() > 0 && ((String) tmp).charAt(0) == ':') {
                     tmp = ":"+((String) tmp);
-                    args.setElementAt(tmp, i);
+                    args.set(i, tmp);
                 }
                 checkSafeString((String) tmp);
-            } else if (tmp instanceof Vector) {
-                Vector v = (Vector) tmp;
+            } else if (tmp instanceof ArrayList) {
+                ArrayList v = (ArrayList) tmp;
                 for (int j = v.size()-1; j >= 0; j--) {
                     tmp = v.get(j);
                     if ((tmp instanceof String) && (((String) tmp).charAt(0) == ':')) {
                         tmp = ":"+((String) tmp);
-                        v.setElementAt(tmp, j);
+                        v.set(j, tmp);
                     }
                     checkSafeString((String) tmp);
                 }
@@ -233,42 +254,47 @@ public class BofhdConnection {
      * Sends a raw command to the server.
      *
      * @param cmd a <code>String</code> with the name of the command
-     * @param args a <code>Vector</code> of arguments
+     * @param args a <code>ArrayList</code> of arguments
      * @param sessid_loc an <code>int</code> the location of the
      * sessionid.  Needed if the command triggers a re-authentication
      * @return an XML-rpc <code>Object</code>
      * @exception BofhdException if an error occurs
      */
-    Object sendRawCommand(String cmd, Vector args, boolean gotRestart,
+    @SuppressWarnings("unchecked")
+    Object sendRawCommand(String cmd, ArrayList args, boolean gotRestart,
         int sessid_loc) throws BofhdException {
         try {
-            if(cmd.equals("login")) {
-                logger.debug("sendCommand("+cmd+", ********");
-            } else if(cmd.equals("run_command")){
-                Vector cmdDef = (Vector) commands.get(args.get(1));
-                if(cmdDef.size() == 1 || (! (cmdDef.get(1) instanceof Vector))) {
+            switch (cmd) {
+                case "login":
+                    logger.debug("sendCommand("+cmd+", ********");
+                    break;
+                case "run_command":
+                ArrayList cmdDef = (ArrayList) commands.get(args.get(1));
+                if(cmdDef.size() == 1 ||
+                                     (! (cmdDef.get(1) instanceof ArrayList))) {
                     logger.debug("sendCommand("+cmd+", "+args);
-                } else {
-                    Vector protoArgs = (Vector) cmdDef.get(1);
-                    Vector logArgs = new Vector();
+                    } else {
+                    ArrayList protoArgs = (ArrayList) cmdDef.get(1);
+                    ArrayList logArgs = new ArrayList();
                     logArgs.add(args.get(0));
                     logArgs.add(args.get(1));
                     int i = 2;
-                    for (Enumeration e = protoArgs.elements() ; e.hasMoreElements() ;) {
+                    for (Iterator e = protoArgs.iterator() ; e.hasNext() ;) {
                         if(i >= args.size()) break;
-                        Hashtable h = (Hashtable) e.nextElement();
-                        String type = (String) h.get("type");
-                        if (type != null && type.equals("accountPassword")) {
-                            logArgs.add("********");
-                        } else {
-                            logArgs.add(args.get(i));
+                        HashMap h = (HashMap) e.next();
+                            String type = (String) h.get("type");
+                            if (type != null && type.equals("accountPassword")) {
+                                logArgs.add("********");
+                            } else {
+                                logArgs.add(args.get(i));
+                            }
+                            i++;
                         }
-                        i++;
-                    }
-                    logger.debug("sendCommand("+cmd+", "+logArgs);
-                }
-            } else {
-                logger.debug("sendCommand("+cmd+", "+args);
+                        logger.debug("sendCommand("+cmd+", "+logArgs);
+                    }   break;
+                default:
+                    logger.debug("sendCommand("+cmd+", "+args);
+                    break;
             }
             washCommandArgs(args);
             Object r = washResponse(xmlrpc.execute(cmd, args));
@@ -294,8 +320,6 @@ public class BofhdConnection {
                 logger.debug("err: code="+e.code, e);
                 throw new BofhdException("Error: "+e.getMessage());
             }
-        } catch (IOException e) {
-            throw new BofhdException("IOError talking to bofhd server: "+e.getMessage());
         }
     }
 

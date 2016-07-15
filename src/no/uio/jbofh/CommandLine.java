@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2010 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -30,10 +30,10 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.Vector;
+import java.util.ArrayList;
 import jline.ConsoleReader;
 
-import org.apache.log4j.Category;
+import org.apache.log4j.Logger;
 
 
 /**
@@ -41,7 +41,7 @@ import org.apache.log4j.Category;
  * @author  runefro, hamar
  */
 public class CommandLine {
-    Category logger;
+    Logger logger;
     JBofh jbofh;
     Timer timer;
     IdleTerminatorTask terminatorTask;
@@ -89,8 +89,12 @@ public class CommandLine {
         }
     }
 
-    /** Creates a new instance of CommandLine */
-    public CommandLine(Category logger, JBofh jbofh, int warnDelay, int terminateDelay) {
+    /** Creates a new instance of CommandLine
+     * @param logger
+     * @param jbofh
+     * @param warnDelay
+     * @param terminateDelay */
+    public CommandLine(Logger logger, JBofh jbofh, int warnDelay, int terminateDelay) {
         this.jbofh = jbofh;
         terminatorTask = new IdleTerminatorTask(60*1000, warnDelay, terminateDelay);
         timer = new Timer(false);
@@ -117,36 +121,38 @@ public class CommandLine {
      * Split string into tokens, using whitespace as delimiter.
      * Matching '/" pairs can be used to include whitespace in the
      * tokens.  Sub-groups marked by matching parenthesis are returned
-     * as sub-vectors. Sub-sub groups are not allowed.
+     * as sub-ArrayLists. Sub-sub groups are not allowed.
      *
      * @param str
-     * @return A vector of parsed tokens.
-     */    
-    Vector splitCommand(String str) throws ParseException {
+     * @return an ArrayList of parsed tokens.
+     */
+    @SuppressWarnings("unchecked")
+    ArrayList splitCommand(String str) throws ParseException {
         /* This could probably be done easier by using String.parse(), but that would require JDK1.4 */
-        
+        str.trim();
         char chars[] = (str+" ").toCharArray();
-        Vector ret = new Vector();
-        Vector subCmd = null, curApp = ret;
+        ArrayList ret = new ArrayList();
+        ArrayList subCmd = null, curApp = ret;
         int i = 0, pstart = 0;
         Character quote = null;
         while(i < chars.length) {
             if(quote != null) {
-                if(chars[i] == quote.charValue()) {                
-                    if(i >= pstart) {      // We allow empty strings
+                if(chars[i] == quote) {
+                    if(i >= pstart) { // We allow empty strings within quotes
                         curApp.add(new String(str.substring(pstart, i)));
                     }
                     pstart = i+1;
                     quote = null;
-                }                
+                }
             } else {
                 if(chars[i] == '\'' || chars[i] == '"') {
                     pstart = i+1;
-                    quote = new Character(chars[i]);
-                } else if(chars[i] == ' ' || chars[i] == '\t' || chars[i] == '(' || chars[i] == ')') {                
+                    quote = chars[i];
+                } else if(chars[i] == ' ' || chars[i] == '\t' || chars[i] == '('
+                                                           || chars[i] == ')') {
                     if(i > pstart) {
-                        curApp.add(new String(str.substring(pstart, i)));
-                    }
+                            curApp.add(new String(str.substring(pstart, i)));
+                        }
                     pstart = i+1;
                     if(chars[i] == ')') {
                         if(subCmd == null) 
@@ -157,7 +163,7 @@ public class CommandLine {
                     } else if(chars[i] == '(') {
                         if(subCmd != null) 
                             throw new ParseException("nested paranthesis detected", i);
-                        subCmd = new Vector();
+                        subCmd = new ArrayList();
                         curApp = subCmd;
                     }
                 }
@@ -185,19 +191,27 @@ public class CommandLine {
         }
     }
     
-    Vector getSplittedCommand() throws IOException, ParseException {
+    ArrayList getSplittedCommand() throws IOException, ParseException {
         String line = promptArg((String)jbofh.props.get("console_prompt"), true);
         if (line == null)
             return null;
         return splitCommand(line);
     }
 
+    /**
+     *
+     * @param c
+     */
     public void setCompleter(jline.Completor c) {
         if (!jbofh.guiEnabled)  {
             consolereader.addCompletor(c);
         }
     }
 
+    /**
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         org.apache.log4j.PropertyConfigurator.configure("log4j.properties");
         String tests[] = {
@@ -209,14 +223,16 @@ public class CommandLine {
             "mer (enn du(skulle tro))",
             "test empty \"\" quote"
         };
-        CommandLine cLine = new CommandLine(Category.getInstance(CommandLine.class), null, 0, 0);
-        for(int j = 0; j < tests.length; j++) {
-            System.out.println("split: --------"+tests[j]+"-----------");
+        CommandLine cLine;
+        cLine = new CommandLine(Logger.getLogger(CommandLine.class),
+                                                                    null, 0, 0);
+        for (String test : tests) {
+            System.out.println("split: --------" + test + "-----------");
             try {
-                Vector v = cLine.splitCommand(tests[j]);
+                ArrayList v = cLine.splitCommand(test);
                 for(int i = 0; i < v.size(); i++)
                     System.out.println(i+": '"+v.get(i)+"'");
-            } catch (ParseException ex) {
+            }catch (ParseException ex) {
                 System.out.println("got: "+ex);
             }
         }       

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003 University of Oslo, Norway
+ * Copyright 2003-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -23,6 +23,10 @@ package no.uio.jbofh;
 public class BofhdException extends Exception {
     private static final long serialVersionUID = 1L;
 
+    /**
+     *
+     * @param message
+     */
     public BofhdException (String message) {
         super (message);
     }

@@ -3,7 +3,7 @@ jBofh - bofh client in Java
 ============================
 
 TODO: About jBofh
-
+TODO: New version with a lot of fixes and improvements, detailed documentation later!
 
 Building jBofh
 ================

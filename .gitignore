@@ -5,3 +5,6 @@ version.txt
 javadoc/
 cacert.pem
 tmp_*/
+/lib/nblibraries.properties
+!/src/version.txt
+!/src/cacert.pem

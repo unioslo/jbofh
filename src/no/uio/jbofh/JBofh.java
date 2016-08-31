@@ -622,6 +622,9 @@ public final class JBofh {
             for (Iterator e = ((ArrayList) resp).iterator() ; e.hasNext() ;) {
                 Object next_resp = e.next();
                 showResponse(cmd, next_resp, false, first);
+                if (e.hasNext()) {
+                    System.out.println();
+                }
                 if(hideRepeatedHeaders)
                     first = false;
                 }

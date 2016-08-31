@@ -71,6 +71,7 @@ public class CommandLine {
             waited = 0;
             has_warned = false;
         }
+        @Override
         public void run() {
             if (waited == -1) return;
             if (warnDelay == 0) return;
@@ -129,8 +130,8 @@ public class CommandLine {
     @SuppressWarnings("unchecked")
     ArrayList splitCommand(String str) throws ParseException {
         /* This could probably be done easier by using String.parse(), but that would require JDK1.4 */
-        str.trim();
-        char chars[] = (str+" ").toCharArray();
+        String trim = str.trim();
+        char chars[] = (trim+" ").toCharArray();
         ArrayList ret = new ArrayList();
         ArrayList subCmd = null, curApp = ret;
         int i = 0, pstart = 0;
@@ -139,7 +140,7 @@ public class CommandLine {
             if(quote != null) {
                 if(chars[i] == quote) {
                     if(i >= pstart) { // We allow empty strings within quotes
-                        curApp.add(new String(str.substring(pstart, i)));
+                        curApp.add(new String(trim.substring(pstart, i)));
                     }
                     pstart = i+1;
                     quote = null;
@@ -151,7 +152,7 @@ public class CommandLine {
                 } else if(chars[i] == ' ' || chars[i] == '\t' || chars[i] == '('
                                                            || chars[i] == ')') {
                     if(i > pstart) {
-                            curApp.add(new String(str.substring(pstart, i)));
+                            curApp.add(new String(trim.substring(pstart, i)));
                         }
                     pstart = i+1;
                     if(chars[i] == ')') {

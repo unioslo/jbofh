@@ -172,18 +172,19 @@ Requirements
 CA-certificates
 ----------------
 
-jBofh would include a ``cacerts.pem``-file in the jar-file, if it exists when
-running ``ant dist``. If this file is not included, or if it needs to be
-replaced, it can be added to the jar-archive later with the python script
+jBofh might include a valid ``cacerts.pem``-file in the jar-file, if it exists
+when running ``ant dist``. If this file is not included then, or if it needs to
+be replaced, it can be added to the jar-archive later with the python script
 `fix_jbofh_jar.py`_.
 
 
 Settings
 ---------
-jBofh woudl include a ``jbofh.properties``-file in the jar-file, if it exists
-when running ``ant dist``. If this file is not included, or if it needs to be
-replaced, it can be added to the jar-archive later with the python script
-`fix_jbofh_jar.py`_.
+jBofh might include a valid ``jbofh.properties``-file in the jar-file, if it
+exists when running ``ant dist``. If this file is not included then, or if it
+needs to be replaced, it can be added to the jar-archive later with the python
+script `fix_jbofh_jar.py`_. Furthermore it is possible to pass extra property
+parameters to the commadline when running JBofh.jar .
 
 
 fix_jbofh_jar.py
@@ -217,17 +218,18 @@ pertailed under `jBofh usage`_
 Runtime requirements
 ---------------------
 
-* jBofh works with all Java versions from almost the last 2 decades, on the
-  other hand we have included bytecode files for the libraries that were
-  compiled with the OpenJDK version '1.7.0_111', which means that if you try
-  compiling and running JBofh with an older version of OpenJDK, by just using
-  the provided library bytecodes that are packed in the JAR files under 'lib/'
-  then you might face trouble and should rather compile all the bytecodes and
-  pack them yourself according to the procedure in here:
+* jBofh requires the latest version of Java runtime available, at the time of
+  writing the stable Java version available is '8' and we have included bytecode
+  files for the libraries that were compiled with the OpenJDK version
+  '1.8.0_101', which means that if you try compiling and running JBofh with an
+  older version of OpenJDK, by just using the provided library bytecodes that
+  are packed in the JAR files under 'lib/' then you might face trouble and
+  should rather compile all the bytecodes and pack them yourself according to
+  the procedure in here:
   `Building the required library JARs`_. The same applies if you would be using
   Oracle© JDK, on the other hand Oracle© has a full packaging solution that
   would automate compiling and packing up the bytecodes along with the whole JVM
-  (java virtual machine), a procdure that should be similar accross different
+  (java virtual machine), a procedure that should be similar accross different
   operating systems from different vendors and thus would make this code and its
   compiled bytecodes run seemlessly, provided that you have the proper license
   from all parties, including the operating systems' vendors:
@@ -279,10 +281,13 @@ Changes and improvements with version 0.9.9
 
    bofh --gui --set gui.font.size.outputwindow=9,gui.font.name.outputwindow=Sans
 
-- JBofh trims blanks at the end of the command now.
+- JBofh trims blanks at the end of the command now before sending them over to
+  the XMLRPC daemon.
 - Reverse search in the JBofh console (not the GUI)works well now, in addition
   to all the previously defect keymaps that were fixed due to a newer and more
   stable version of JLine.
+- A line break has been added at the end of each command as requested by some
+  Bofh users.
 - The GUI interface had some face liftings as well, we hereby name the most
   important and relevant ones:
 

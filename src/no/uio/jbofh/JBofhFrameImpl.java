@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2010 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -27,6 +27,7 @@
 package no.uio.jbofh;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
@@ -41,10 +42,10 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.KeyboardFocusManager;
 
 import java.io.IOException;
-import java.util.Hashtable;
-import java.util.Vector;
+import java.util.HashMap;
 import java.util.ArrayList;
 
 import javax.swing.AbstractAction;
@@ -67,18 +68,18 @@ import javax.swing.text.Keymap;
  *
  * @author  runefro
  */
-public class JBofhFrameImpl implements ActionListener, JBofhFrame {
+public final class JBofhFrameImpl implements ActionListener, JBofhFrame {
     JTextArea tfOutput;
     private JTextField tfCmdLine;
     JLabel lbPrompt;
-    JFrame frame;
+    JFrame jframe;
     private boolean isBlocking = false;
     private boolean wasEsc = false;
     JBofh jbofh;
-    Vector cmdLineHistory = new Vector();
+    ArrayList cmdLineHistory = new ArrayList();
     int historyLocation;
     JPopupMenu tfPopup;
-    Hashtable menuItems = new Hashtable();
+    HashMap menuItems = new HashMap();
 
     class MyKeyAction extends AbstractAction {
         private static final long serialVersionUID = 1L;
@@ -95,48 +96,49 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
                 tfCmdLine.setText("");
             } else if("tab".equals(getValue(Action.NAME))) {
                 ArrayList completions = new ArrayList();
-                StringBuffer suggestions = new StringBuffer();
+                StringBuilder suggestions = new StringBuilder();
                 int nlines = 1;
                 jbofh.bcompleter.complete(
                         getCmdLineText(), 
                         tfCmdLine.getCaret().getDot(), 
                         completions);
-                if(completions.size() == 1) {
-                    String str = getCmdLineText();
-                    int loc = str.lastIndexOf(" ");
-                    tfCmdLine.setText(str.substring(0, loc+1)+completions.get(0)+" ");
-                } else if(completions.size() == 0) {
-                    // No completions, do nothing (beeps are anoying)
-                } else {
-                    // Complete as much as possible
-                    String common=""+completions.get(0);
-                    for(int j = 1; j < completions.size(); j++) {
-                        String tmp = (String) completions.get(j);
-                        int minLen = Math.min(tmp.length(), common.length());
-
-                        for(int n = 0; n < minLen; n++) {
-                            if(tmp.charAt(n) != common.charAt(n)) {
-                                //System.out.println(n+" "+tmp+" "+common);
-                                common = common.substring(0, n);
-                                break;
-                            }
-                        }
-                    }
-                    if(common.length() > 0) {
+                switch (completions.size()) {
+                    case 1:
                         String str = getCmdLineText();
                         int loc = str.lastIndexOf(" ");
-                        tfCmdLine.setText(str.substring(0, loc+1)+common);
-                    }
-                    for (Object o: completions) {
-                        if (suggestions.length() > 80*nlines) {
-                            suggestions.append("\n");
-                            ++nlines;
-                        } else if (suggestions.length() > 0) {
-                            suggestions.append(' ');
-                        }
-                        suggestions.append((String)o);
-                    }
-                    showMessage(suggestions.toString(), true);
+                        tfCmdLine.setText(str.substring(0, loc+1)+completions.get(0)+" ");
+                        break;
+                // No completions, do nothing (beeps are anoying)
+                    case 0:
+                        break;
+                    default:
+                        // Complete as much as possible
+                        String common=""+completions.get(0);
+                        for(int j = 1; j < completions.size(); j++) {
+                            String tmp = (String) completions.get(j);
+                            int minLen = Math.min(tmp.length(), common.length());
+                            
+                            for(int n = 0; n < minLen; n++) {
+                                if(tmp.charAt(n) != common.charAt(n)) {
+                                    //System.out.println(n+" "+tmp+" "+common);
+                                    common = common.substring(0, n);
+                                    break;
+                                }
+                            }
+                        }   if(common.length() > 0) {
+                            String strng = getCmdLineText();
+                            int lc = strng.lastIndexOf(" ");
+                            tfCmdLine.setText(strng.substring(0, lc+1)+common);
+                        }   for (Object o: completions) {
+                            if (suggestions.length() > 80*nlines) {
+                                suggestions.append("\n");
+                                ++nlines;
+                            } else if (suggestions.length() > 0) {
+                                suggestions.append(' ');
+                            }
+                            suggestions.append((String)o);
+                        }   showMessage(suggestions.toString() + "\n", true);
+                        break;
                 }
             } else if("up".equals(getValue(Action.NAME))) {
                 if(historyLocation > 0 && cmdLineHistory.size() > 0) {
@@ -171,20 +173,24 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         }
     }
 
-
+    /**
+     *
+     * @param jbofh
+     */
     public JBofhFrameImpl(JBofh jbofh) {
         this.jbofh = jbofh;
         makeGUI();
     }
-
+    @SuppressWarnings("unchecked")
     void makeGUI() {
         JPanel np = new JPanel();
         JScrollPane sp = new JScrollPane(tfOutput = new JTextArea());
-        frame = new JFrame("JBofh");
-        
+        jframe = new JFrame("JBofh");
         tfOutput.setEditable(false);
         tfOutput.setFont(new Font(""+jbofh.props.get("gui.font.name.outputwindow"),
                              Font.PLAIN, Integer.parseInt(""+jbofh.props.get("gui.font.size.outputwindow"))));
+        tfOutput.setBackground(Color.BLACK);
+        tfOutput.setForeground(Color.WHITE);
         np.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.WEST;
@@ -194,8 +200,13 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         gbc.weightx = 1.0;
         np.add(tfCmdLine = new JTextField(), gbc);
         tfCmdLine.addActionListener(this);
-        frame.getContentPane().add(sp, BorderLayout.CENTER);
-        frame.getContentPane().add(np, BorderLayout.SOUTH);
+        jframe.getContentPane().add(sp, BorderLayout.CENTER);
+        jframe.getContentPane().add(np, BorderLayout.SOUTH);
+        KeyboardFocusManager.getCurrentKeyboardFocusManager()
+          .addKeyEventDispatcher((KeyEvent e) -> {
+              tfCmdLine.requestFocus();
+              return false;
+        });
 
         // We want control over some keys used on tfCmdLine
         tfCmdLine.setFocusTraversalKeysEnabled(false);
@@ -224,21 +235,29 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         MouseListener popupListener = new PopupListener();
         tfOutput.addMouseListener(popupListener);
 
-        frame.addWindowListener(new WindowAdapter() {
+        jframe.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent e) {
                     System.exit(0);
                 }
             });
-        frame.pack();
-        frame.setSize(new Dimension(700,400));
-        frame.setVisible(true);
+        jframe.pack();
+        jframe.setSize(new Dimension(700,400));
+        jframe.setVisible(true);
     }
 
+    /**
+     *
+     * @return
+     */
     public String getCmdLineText(){
         tfCmdLine.requestFocusInWindow();
         return tfCmdLine.getText();
     }
 
+    /**
+     *
+     * @param on
+     */
     public void showWait(boolean on) {
         if(on) {
             lbPrompt.setText("Wait");
@@ -249,19 +268,36 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public boolean confirmExit() {
-        if(JOptionPane.OK_OPTION == JOptionPane.showConfirmDialog(frame, "Really exit?", 
-               "Please confirm", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE))
-            return true;
-        return false;
+        return JOptionPane.OK_OPTION == 
+                JOptionPane.showConfirmDialog(jframe, "Really exit?",
+                                "Please confirm", JOptionPane.OK_CANCEL_OPTION,
+                                JOptionPane.WARNING_MESSAGE);
     }
 
+    /**
+     *
+     * @param msg
+     * @param crlf
+     */
     public void showMessage(String msg, boolean crlf) {
         tfOutput.append(msg);
         if(crlf) tfOutput.append("\n");
         tfOutput.setCaretPosition(tfOutput.getText().length());
     }
-    
+
+    /**
+     *
+     * @param prompt
+     * @param addHist
+     * @return
+     * @throws IOException
+     */
+    @SuppressWarnings("unchecked")
     public String promptArg(String prompt, boolean addHist) throws IOException {
         /* We lock the current thread so that execution does not
          * continue until JBofh.actionPerformed releases the
@@ -286,7 +322,7 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
                         }
                         historyLocation = cmdLineHistory.size();
                     }
-                    showMessage(prompt+text, true);
+                    showMessage("\n" + prompt + text, true);
                     tfCmdLine.setText("");
                     // If we don't set the caret position, requestFocus failes
                     tfCmdLine.setCaretPosition(0);
@@ -298,6 +334,10 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         }
     }
 
+    /**
+     *
+     * @param evt
+     */
     public void actionPerformed(ActionEvent evt) {
         if(evt.getSource() == tfCmdLine) {
             releaseLock();
@@ -309,34 +349,65 @@ public class JBofhFrameImpl implements ActionListener, JBofhFrame {
         }
     }
 
+    /**
+     * Finished, release it.
+     */
     protected void releaseLock() {
         if(! isBlocking) return;
         synchronized (tfCmdLine.getTreeLock()) {
             isBlocking = false;
-            EventQueue.invokeLater(new Runnable(){ public void run() {} });
+            EventQueue.invokeLater(() -> {
+            });
             tfCmdLine.getTreeLock().notifyAll();
         }
     }
 
+    /**
+     *
+     * @param prompt
+     * @param parent
+     * @return
+     * @throws MethodFailedException
+     */
     public String getPasswordByJDialog(String prompt, Frame parent) 
         throws MethodFailedException {
         try {
-            JPasswordField pf = new JPasswordField(10);
-            JOptionPane pane = new JOptionPane(pf, JOptionPane.QUESTION_MESSAGE, 
+            JPasswordField pf = new JPasswordField(10){
+              public void addNotify() {
+                super.addNotify();
+                KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                   .addKeyEventDispatcher((KeyEvent e) -> {
+                this.requestFocusInWindow();
+                return false;
+                });
+              }
+            };
+            JOptionPane pane = new JOptionPane(pf, JOptionPane.QUESTION_MESSAGE,
                 JOptionPane.OK_CANCEL_OPTION);
             JDialog dialog = pane.createDialog(parent, prompt);
-            pf.requestFocus();
+            dialog.setLocationRelativeTo(tfOutput);
             dialog.setVisible(true);
+            pf.addNotify();
             dialog.dispose();
             Object value = pane.getValue();
-            if(((Integer) value).intValue() == JOptionPane.OK_OPTION) 
-                return new String(pf.getPassword());
-            return null;
+            try {
+                if(((Integer) value) == JOptionPane.OK_OPTION) 
+                    return new String(pf.getPassword());
+                return null;
+            } catch (java.lang.NullPointerException e) {
+                    System.exit(0);
+                    throw new NullPointerException("/*Nothing to do, exit*/!");
+            }
         } catch (java.lang.NoClassDefFoundError e) {
             throw new MethodFailedException();
-        }
+            }
     }
 
+    /**
+     *
+     * @param title
+     * @param msg
+     */
     public void showErrorMessageDialog(String title, String msg) {
         JOptionPane.showMessageDialog(null, msg, title,
             JOptionPane.ERROR_MESSAGE);

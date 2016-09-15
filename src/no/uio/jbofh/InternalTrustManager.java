@@ -1,5 +1,5 @@
 /*
- * Copyright 2002, 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -28,23 +28,17 @@ package no.uio.jbofh;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Date;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.apache.log4j.Category;
-import org.apache.xmlrpc.XmlRpcClient;
-import org.apache.xmlrpc.XmlRpcException;
 
 /**
  * Specialized TrustManager called by the SSLSocket framework when
@@ -58,10 +52,13 @@ class InternalTrustManager implements X509TrustManager {
     }
 
     private void readServerCert() throws IOException, CertificateException {
-        InputStream inStream = ResourceLocator.getResource(this, "/cacert.pem").openStream();
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        X509Certificate cert = (X509Certificate)cf.generateCertificate(inStream);
-        inStream.close();
+        X509Certificate cert;
+        try (InputStream inStream = 
+                ResourceLocator.getResource(this, "/cacert.pem").openStream()) {
+                CertificateFactory cf;
+                cf = CertificateFactory.getInstance("X.509");
+                cert = (X509Certificate)cf.generateCertificate(inStream);
+        }
         serverCert = cert;
     }
 
@@ -92,15 +89,19 @@ class InternalTrustManager implements X509TrustManager {
             try {
                 if (cert[i] != parent)
                     cert[i].verify(parent.getPublicKey());
-            } catch (Exception e) {
-                throw new CertificateException("Bad server certificate: "+e);
+                } catch (CertificateException | NoSuchAlgorithmException |
+                            InvalidKeyException | NoSuchProviderException |
+                            SignatureException e) {
+                   throw new CertificateException("Bad server certificate: "+e);
             }
             if(cert[i].getIssuerDN().equals(serverCert.getSubjectDN())) {
                 // Issuer is trusted
                 try {
                     cert[i].verify(serverCert.getPublicKey());
                     serverCert.checkValidity(date);
-                } catch (Exception e) {
+                    } catch (CertificateException | NoSuchAlgorithmException |
+                            InvalidKeyException | NoSuchProviderException |
+                            SignatureException e) {
                     System.out.println("bas");
                     throw new CertificateException("Bad server certificate: "+e);
                 }

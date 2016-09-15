@@ -1,5 +1,5 @@
 /*
- * Copyright 2003, 2004 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -30,15 +30,61 @@ import java.io.IOException;
  */
 
 public interface JBofhFrame {
-    java.awt.Frame frame = null;
 
+    /**
+     *
+     */
+    java.awt.Frame AWT_frame = null;
+
+    /**
+     *
+     * @param prompt
+     * @param parent
+     * @return
+     * @throws MethodFailedException
+     */
     public String getPasswordByJDialog(String prompt, Frame parent) 
         throws MethodFailedException;
+
+    /**
+     *
+     * @return
+     */
     public String getCmdLineText();
+
+    /**
+     *
+     * @param prompt
+     * @param addHist
+     * @return
+     * @throws IOException
+     */
     public String promptArg(String prompt, boolean addHist) throws IOException;
+
+    /**
+     *
+     * @param msg
+     * @param crlf
+     */
     public void showMessage(String msg, boolean crlf);
+
+    /**
+     *
+     * @return
+     */
     public boolean confirmExit();
+
+    /**
+     *
+     * @param on
+     */
     public void showWait(boolean on);
+
+    /**
+     *
+     * @param title
+     * @param msg
+     */
     public void showErrorMessageDialog(String title, String msg);
 
 }

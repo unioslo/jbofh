@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2010 University of Oslo, Norway
+ * Copyright 2002-2016 University of Oslo, Norway
  *
  * This file is part of Cerebrum.
  *
@@ -34,14 +34,13 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Enumeration;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashMap;
 
-import org.apache.log4j.Category;
+import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
 import com.sun.java.text.PrintfFormat;
@@ -51,28 +50,34 @@ import com.sun.java.text.PrintfFormat;
  *
  * @author  runefro
  */
-public class JBofh {
+public final class JBofh {
     Properties props;
     CommandLine cLine;
     BofhdConnection bc;
-    static Category logger = Category.getInstance(JBofh.class);
+    static Logger logger = Logger.getLogger(JBofh.class);
     BofhdCompleter bcompleter;
-    Hashtable knownFormats;
+    HashMap knownFormats;
     String version = "unknown";
     boolean guiEnabled, hideRepeatedHeaders;
     JBofhFrame mainFrame;
     String uname;
     private FileWriter script_file;
 
-    /** Creates a new instance of JBofh 
+    /** Creates a new instance of JBofh
+     * @param gui
+     * @param log4jPropertyFile
+     * @param bofhd_url
+     * @param propsOverride
+     * @throws no.uio.jbofh.BofhdException
      */
-
+    @SuppressWarnings("unchecked")
     public JBofh(boolean gui, String log4jPropertyFile, String bofhd_url,
-        Hashtable propsOverride) throws BofhdException {
+        HashMap propsOverride) throws BofhdException {
         guiEnabled = gui;
         loadPropertyFiles(log4jPropertyFile);
-        for (Enumeration e = propsOverride.keys() ; e.hasMoreElements() ;) {
-            String k = (String) e.nextElement();
+        for (Iterator e = (propsOverride.keySet().iterator()) ;
+                e.hasNext() ;) {
+            String k = (String) e.next();
             String v = (String) propsOverride.get(k);
             props.put(k, v);
         }
@@ -85,16 +90,10 @@ public class JBofh {
                 Class[] cargs = new Class[] { this.getClass() };
                 java.lang.reflect.Constructor constr = c.getConstructor(cargs);
                 mainFrame = (JBofhFrame) constr.newInstance(args);
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoSuchMethodException |
+                        IllegalAccessException | InstantiationException |
+                        java.lang.reflect.InvocationTargetException e) {
                 System.out.println(e);
-            } catch (NoSuchMethodException e) {
-                System.out.println(e);
-            } catch (IllegalAccessException e) {
-                System.out.println(e);
-            } catch (InstantiationException e) {
-                System.out.println(e);
-            } catch (java.lang.reflect.InvocationTargetException e) {
-                System.out.println(e);            
             }
             //mainFrame = (JBofhFrame) new JBofhFrameImpl(this);
         }
@@ -103,11 +102,10 @@ public class JBofh {
         String intTrust = (String) props.get("InternalTrustManager.enable");
         if(bofhd_url == null) bofhd_url = (String) props.get("bofhd_url");
         showMessage("Bofhd server is at "+bofhd_url, true);
-        bc.connect(bofhd_url, 
-            (intTrust != null && intTrust.equals("true")) ? true : false);
+        bc.connect(bofhd_url, (intTrust != null && intTrust.equals("true")));
         String intHide =  (String) props.get("HideRepeatedReponseHeaders");
         hideRepeatedHeaders = (intHide != null && intHide.equals("true")
-                               ) ? true : false;
+                );
 
         int idleWarnDelay = 0;
         int idleTerminateDelay = 0;
@@ -126,6 +124,12 @@ public class JBofh {
         readVersion();
     }
 
+    /**
+     *
+     * @param uname
+     * @param password
+     * @throws BofhdException
+     */
     public void initialLogin(String uname, String password) 
         throws BofhdException {
         if(! login(uname, password)) {
@@ -139,6 +143,10 @@ public class JBofh {
         showMessage("Welcome to jbofh, v "+version+", type \"help\" for help", true);
     }
     
+    /**
+     *
+     * @param fname
+     */
     protected void loadPropertyFiles(String fname) {
         try {
             URL url = ResourceLocator.getResource(this, fname);
@@ -160,13 +168,22 @@ public class JBofh {
         URL url = ResourceLocator.getResource(this, "/version.txt");
         if(url != null) {
             try {
-                BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream()));
-                version = br.readLine();
-                br.close();
+                try (BufferedReader br =
+                        new BufferedReader(
+                                new InputStreamReader(url.openStream()))) {
+                    version = br.readLine();
+                }
             } catch (IOException e) {}  // ignore failure
         }
     }
 
+    /**
+     *
+     * @param uname
+     * @param password
+     * @return
+     * @throws BofhdException
+     */
     public boolean login(String uname, String password) throws BofhdException {
         try {
             while(uname == null) {
@@ -178,13 +195,14 @@ public class JBofh {
                 String prompt = "Password for "+uname+":";
                 if(guiEnabled) {
                     try {
-                        password = cp.getPasswordByJDialog(prompt, JBofhFrame.frame);
+                        password = cp.getPasswordByJDialog(prompt,
+                                                          JBofhFrame.AWT_frame);
                     } catch (MethodFailedException e) {
                         return false;
                     }
                 } else {
                     //password = cp.getPassword(prompt);
-                    password = cLine.consolereader.readLine(prompt, new Character('*'));
+                    password = cLine.consolereader.readLine(prompt, '*');
                 }
             }
             if(password == null) return false;
@@ -195,28 +213,29 @@ public class JBofh {
         }
         return true;
     }
-
+    @SuppressWarnings("unchecked")
     void initCommands() throws BofhdException {
         bc.updateCommands();
         bcompleter = new BofhdCompleter(this, logger);
-        for (Enumeration e = bc.commands.keys(); e.hasMoreElements(); ) {
-            String protoCmd = (String) e.nextElement();
-            Vector cmd = (Vector) ((Vector) bc.commands.get(protoCmd)).get(0);
+        for (Iterator e = (bc.commands.keySet().iterator()); e.hasNext(); ) {
+            String protoCmd = (String) e.next();
+            ArrayList cmd =
+                    (ArrayList) ((ArrayList) bc.commands.get(protoCmd)).get(0);
             bcompleter.addCompletion(cmd, protoCmd);
         }
-        Vector v = new Vector();
-        v.add(new String("help"));
+        ArrayList v = new ArrayList();
+        v.add("help");
         bcompleter.addCompletion(v, "");
-        v.set(0, new String("source"));
+        v.set(0, "source");
         bcompleter.addCompletion(v, "");
-        v.set(0, new String("script"));
+        v.set(0, "script");
         bcompleter.addCompletion(v, "");
         /* We don't want completion for quit
            v.set(0, new String("quit"));
            bcompleter.addCompletion(v, ""); */
         cLine.setCompleter(bcompleter);
 
-        knownFormats = new Hashtable();
+        knownFormats = new HashMap();
     }
 
     void showMessage(String msg, boolean crlf) {
@@ -244,27 +263,23 @@ public class JBofh {
     }
 
     private boolean processCmdLine() {
-        Vector args;
+        ArrayList args;
         try {
             bcompleter.setEnabled(true);
             args = cLine.getSplittedCommand();
             if (args == null) {
-                if(guiEnabled && (! mainFrame.confirmExit()))
-                    return true;
-                return false;
+                return guiEnabled && (! mainFrame.confirmExit());
             }
         } catch (IOException io) {
-            if(guiEnabled && (! mainFrame.confirmExit()))
-                return true;
-            return false;
+            return guiEnabled && (! mainFrame.confirmExit());
         } catch (ParseException pe) {
             showMessage("Error parsing command: "+pe, true);
             return true;
         }
-        if(args.size() == 0) return true;
+        if(args.isEmpty()) return true;
         try {
             if(script_file != null) {
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 for(Iterator iterator = args.iterator(); iterator.hasNext();) {
                     sb.append(iterator.next());
                     if(iterator.hasNext()) sb.append(" ");
@@ -272,7 +287,6 @@ public class JBofh {
                 try {
                     script_file.write(((String) props.get("console_prompt"))+sb.toString()+"\n");
                 } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
             runCommand(args, false);
@@ -282,15 +296,20 @@ public class JBofh {
         return true;
     }
 
-        private boolean handleNativeComands(Vector args, boolean sourcing) throws BofhdException {
-            if(((String) args.get(0)).equals("commands")) {  // Neat while debugging
-                for (Enumeration e = bc.commands.keys() ; e.hasMoreElements() ;) {
-                    Object key = e.nextElement();
+        private boolean handleNativeComands(ArrayList args)
+                                                        throws BofhdException {
+        switch ((String) args.get(0)) {
+            case "commands":
+                // Neat while debugging
+                for (Iterator e = bc.commands.keySet().iterator(); e.hasNext();) {
+                    Object key = e.next();
                     showMessage(key+" -> "+ bc.commands.get(key), true); 
                 }
-            } else if(((String) args.get(0)).equals("quit")) {
+                break;
+            case "quit":
                 bye();
-            } else if(((String) args.get(0)).equals("script")) {
+                break;
+            case "script":
                 if(args.size() == 1) {
                     if(script_file == null) { 
                         throw new BofhdException("Must specify output filename");
@@ -313,7 +332,8 @@ public class JBofh {
                     }
                     showMessage("Script file started.  Run script with no args to close file", true);
                 }
-            } else if(((String) args.get(0)).equals("source")) {
+                break;
+            case "source":
                 if(args.size() == 1) {
                     showMessage("Must specify filename to source", true);
                 } else {
@@ -327,24 +347,26 @@ public class JBofh {
                     }
                     sourceFile(fname, stop_on_error);
                 }
-            } else if(((String) args.get(0)).equals("help")) {
+                break;
+            case "help":
                 args.remove(0);
                 showMessage(bc.getHelp(args), true);
-            } else {
+                break;
+            default:
                 return false;
-            }
+        }
             return true;
         }
-        
-        private void runCommand(Vector args, boolean sourcing) 
+        @SuppressWarnings("unchecked")
+        private void runCommand(ArrayList args, boolean sourcing) 
             throws BofhdException {
-            if (handleNativeComands(args, sourcing)) return;
+            if (handleNativeComands(args)) return;
             String protoCmd;
-            Vector protoArgs;
+            ArrayList protoArgs;
             try {
-                Vector lst = bcompleter.analyzeCommand(args, -1);
+                ArrayList lst = bcompleter.analyzeCommand(args, -1);
                 protoCmd = (String) lst.get(lst.size() - 1);
-                protoArgs = new Vector(
+                protoArgs = new ArrayList(
                     args.subList(lst.size()-1, args.size()));
             } catch (AnalyzeCommandException e) {
                 if (sourcing) throw new BofhdException(e.getMessage());
@@ -356,8 +378,8 @@ public class JBofh {
             }
             try {
                 boolean multiple_cmds = false;
-                for (Enumeration e = protoArgs.elements() ; e.hasMoreElements() ;) 
-                    if(e.nextElement() instanceof Vector)
+                for (Iterator e = protoArgs.iterator() ; e.hasNext() ;)
+                    if(e.next() instanceof ArrayList)
                         multiple_cmds = true;
                 if(guiEnabled && ! sourcing) mainFrame.showWait(true);
                 Object resp = bc.sendCommand(protoCmd, protoArgs);
@@ -367,12 +389,12 @@ public class JBofh {
                 showMessage(ex.getMessage(), true);
             } catch (Exception ex) {
                 showMessage("Unexpected error (bug): "+ex, true);
-                ex.printStackTrace();
+                ex.printStackTrace(System.out);
             } finally {
                 if(guiEnabled && ! sourcing) mainFrame.showWait(false);
             }
-        }        
-                
+        }
+
         void enterLoop() {
             boolean keepLooping = true;
             while(keepLooping) {
@@ -380,7 +402,7 @@ public class JBofh {
                     keepLooping = processCmdLine();
                 } catch (Exception ex) {
                     showMessage("Unexpected error (bug): "+ex, true);
-                    ex.printStackTrace();
+                    ex.printStackTrace(System.out);
                 }
             }
             bye();
@@ -393,7 +415,7 @@ public class JBofh {
                     new InputStreamReader(new FileInputStream(filename)));
                 String sin;
                 int lineno = 0;
-                Vector args;
+                ArrayList args;
                 while((sin = in.readLine()) != null) {
                     lineno++;
                     sin = sin.trim();
@@ -433,13 +455,13 @@ public class JBofh {
         }
 
        private boolean opt2bool(Object opt) {
-           return (opt instanceof Boolean && ((Boolean) opt).booleanValue()) ||
-                   (opt instanceof Integer && ((Integer) opt).intValue() == 1);
+           return (opt instanceof Boolean && ((Boolean) opt)) ||
+                   (opt instanceof Integer && ((Integer) opt) == 1);
        }
-        
-        Vector checkArgs(String cmd, Vector args) throws BofhdException {
-            Vector ret = (Vector) args.clone();
-            Vector cmd_def = (Vector) bc.commands.get(cmd);
+        @SuppressWarnings("unchecked")
+        ArrayList checkArgs(String cmd, ArrayList args) throws BofhdException {
+            ArrayList ret = (ArrayList) args.clone();
+            ArrayList cmd_def = (ArrayList) bc.commands.get(cmd);
             boolean did_prompt = false;
             if(cmd_def.size() == 1) return ret;
             Object pspec = cmd_def.get(1);
@@ -449,12 +471,12 @@ public class JBofh {
                 }
                 return processServerCommandPromptFunction(cmd, ret);
             }
-        for(int i = args.size(); i < ((Vector) pspec).size(); i++) {
-            Hashtable param = (Hashtable) ((Vector) pspec).get(i);
+        for(int i = args.size(); i < ((ArrayList) pspec).size(); i++) {
+            HashMap param = (HashMap) ((ArrayList) pspec).get(i);
             logger.debug("ps: "+i+" -> "+param);
             Object opt = param.get("optional");
             if(! did_prompt && opt2bool(opt))
-            break;  // If we have prompted, remain in prompt-mode also for optional args
+                break;  // If we have prompted, remain in prompt-mode also for optional args
             Object tmp = param.get("default");
             String defval = null;
             if(tmp != null) {
@@ -478,12 +500,13 @@ public class JBofh {
 
                 if(guiEnabled) {
                 try {
-                    s = cp.getPasswordByJDialog(prompt + ">", JBofhFrame.frame);
+                    s = cp.getPasswordByJDialog(prompt + ">",
+                                                        JBofhFrame.AWT_frame);
                 } catch (MethodFailedException e) {
                     s = "";
                 }
                 } else {
-                s = cLine.consolereader.readLine(prompt + ">", new Character('*'));
+                s = cLine.consolereader.readLine(prompt + ">", '*');
                 }
             } else {
                 bcompleter.setEnabled(false);
@@ -496,7 +519,7 @@ public class JBofh {
 		    ret.add(defval);
 		} else if(s.equals("?")) {
 		    i--;
-		    Vector v = new Vector();
+		    ArrayList v = new ArrayList();
 		    v.add("arg_help");
 		    v.add(param.get("help_ref"));
 		    String help = (String) bc.getHelp(v);
@@ -514,26 +537,27 @@ public class JBofh {
 	}
         return ret;
     }
-    
-    Vector processServerCommandPromptFunction(String cmd, Vector ret)  throws BofhdException {
+    @SuppressWarnings("unchecked")
+    ArrayList processServerCommandPromptFunction(String cmd, ArrayList ret) 
+                                                        throws BofhdException {
         while(true) {
             ret.add(0, bc.sessid);
             ret.add(1, cmd);
             Object obj =  bc.sendRawCommand("call_prompt_func", ret, 0);
-            if (! (obj instanceof Hashtable))
+            if (! (obj instanceof HashMap))
                 throw new BofhdException("Server bug: prompt_func returned " + obj);
-            Hashtable arginfo = (Hashtable) obj;
+            HashMap arginfo = (HashMap) obj;
             ret.remove(0);
             ret.remove(0);
             try {
                 if(arginfo.get("prompt") == null && arginfo.get("last_arg") != null)
                     break;
                 String defval = (String) arginfo.get("default");
-                Vector map = (Vector) arginfo.get("map");
+                ArrayList map = (ArrayList) arginfo.get("map");
                 if(map != null) {
                     for(int i = 0; i < map.size(); i++) {
-                        Vector line = (Vector) map.get(i);
-                        Vector description = (Vector) line.get(0);
+                        ArrayList line = (ArrayList) map.get(i);
+                        ArrayList description = (ArrayList) line.get(0);
                         String format_desc = (String) description.get(0);
                         description.remove(0);
                         if(i == 0) {
@@ -541,7 +565,7 @@ public class JBofh {
                             description.add(0, "Num");
                         } else {
                             format_desc = "%4i " + format_desc;
-                            description.add(0, new Integer(i));
+                            description.add(0, i);
                         }
                         PrintfFormat pf = new PrintfFormat(format_desc);
                         showMessage(pf.sprintf(description.toArray()), true);
@@ -558,7 +582,7 @@ public class JBofh {
                         showMessage("Sorry, no help available", true);
                         continue;
                     }
-                    Vector v = new Vector();
+                    ArrayList v = new ArrayList();
                     v.add("arg_help");
                     v.add(arginfo.get("help_ref"));
                     String help = (String) bc.getHelp(v);
@@ -570,7 +594,7 @@ public class JBofh {
                         try {
                             int i = Integer.parseInt(s);
                             if(i == 0) throw new Exception("");
-                            ret.add(((Vector)map.get(i)).get(1));
+                            ret.add(((ArrayList)map.get(i)).get(1));
                         } catch (Exception e) {
                             showMessage("Value not in list", true);
                         }
@@ -587,7 +611,7 @@ public class JBofh {
         }
         return ret;
     }
-
+    @SuppressWarnings("unchecked")
     void showResponse(String cmd, Object resp, boolean multiple_cmds, 
         boolean show_hdr) throws BofhdException {
         if(multiple_cmds) {
@@ -595,57 +619,62 @@ public class JBofh {
              * which command each response belongs to?
              */
             boolean first = true;
-            for (Enumeration e = ((Vector) resp).elements() ; e.hasMoreElements() ;) {
-                Object next_resp = e.nextElement();
+            for (Iterator e = ((ArrayList) resp).iterator() ; e.hasNext() ;) {
+                Object next_resp = e.next();
                 showResponse(cmd, next_resp, false, first);
+                if (e.hasNext()) {
+                    System.out.println();
+                }
                 if(hideRepeatedHeaders)
                     first = false;
+                }
+                return;
             }
-            return;
-        }
         if(resp instanceof String) {
             showMessage((String) resp, true);
             return;
         }
-        Vector args = new Vector();
+        ArrayList args = new ArrayList();
         args.add(cmd);
-        Hashtable format = (Hashtable) knownFormats.get(cmd);
+        HashMap format = (HashMap) knownFormats.get(cmd);
         if(format == null) {
             Object f = bc.sendRawCommand("get_format_suggestion", args, -1);
             if(f instanceof String && ((String)f).equals(""))
                 f = null;
             if(f != null) {
                 knownFormats.put(cmd, f);
-                format = (Hashtable) knownFormats.get(cmd);
+                format = (HashMap) knownFormats.get(cmd);
             } else {
                 throw new IllegalArgumentException("result was class: "+
                     resp.getClass().getName()+ ", no format suggestion exists");
             }
         }
-        if(! (resp instanceof Vector) ){
-            Vector tmp = new Vector();    // Pretend that returned value was a Vector
+        if(! (resp instanceof ArrayList) ){
+            ArrayList tmp = new ArrayList(); // Force value as ArrayList
             tmp.add(resp);
             resp = tmp;
-        } 
+        }
         String hdr = (String) format.get("hdr");
         if(hdr != null && show_hdr) showMessage(hdr, true);
-        for (Enumeration ef = ((Vector) format.get("str_vars")).elements() ; 
-             ef.hasMoreElements() ;) {
-            Vector format_info = (Vector) ef.nextElement();
+        for (Iterator ef =
+                ((ArrayList) format.get("str_vars")).iterator() ;
+                ef.hasNext() ;) {
+            ArrayList format_info = (ArrayList) ef.next();
             String format_str = (String) format_info.get(0);
-            Vector order = (Vector) format_info.get(1);
+            ArrayList order = (ArrayList) format_info.get(1);
             String sub_hdr = null;
             if(format_info.size() == 3)
                 sub_hdr = (String) format_info.get(2);
-            for (Enumeration e = ((Vector) resp).elements() ; e.hasMoreElements() ;) {
-                Hashtable row = (Hashtable) e.nextElement();
-                if(! row.containsKey(order.get(0)))
+            for (Iterator e = ((ArrayList) resp).iterator() ;
+                    e.hasNext() ;) {
+                HashMap row = (HashMap) (e.next());
+            if(! row.containsKey(order.get(0)))
                     continue;
-                try {
+            try {
                     PrintfFormat pf = new PrintfFormat(format_str);
                     if(sub_hdr != null) {
                         // This dataset has a sub-header, optionaly %s formatted
-                        if(sub_hdr.indexOf("%") != -1) {
+                        if(sub_hdr.contains("%")) {
                             pf = new PrintfFormat(sub_hdr);
                         } else {
                             showMessage(sub_hdr, true);
@@ -653,10 +682,10 @@ public class JBofh {
                         sub_hdr = null;
                     }
 
-                    Object a[] = new Object[order.size()];
-                    for(int i = 0; i < order.size(); i++) {
+            Object a[] = new Object[order.size()];
+            for(int i = 0; i < order.size(); i++) {
                         String tmp = (String) order.get(i);
-                        if(tmp.indexOf(":") != -1) {
+                        if(tmp.contains(":")) {
                             StringTokenizer st = new StringTokenizer(tmp, ":");
                             tmp = st.nextToken();
                             String type = st.nextToken();
@@ -680,18 +709,18 @@ public class JBofh {
                     logger.error("Error formatting "+resp+"\n as: "+format, ex);
                     showMessage("An error occoured formatting the response, see log for details", true);
                 }
-            }
+         }
         }
     }
 
     static boolean isMSWindows() { 
         String os = System.getProperty("os.name"); 
-        if (os != null && os.startsWith("Windows")) return true; 
-        return false; 
+        return os != null && os.startsWith("Windows"); 
     }
     /**
      * @param args the command line arguments
      */
+    @SuppressWarnings({"unchecked", "null"})
     public static void main(String[] args) {
         boolean gui = JBofh.isMSWindows();
         String uname = System.getProperty("user.name");
@@ -700,36 +729,49 @@ public class JBofh {
             String bofhd_url = null;
             boolean test_login = false;
             String log4jPropertyFile = "/log4j_normal.properties";
-            Hashtable propsOverride = new Hashtable();
+            HashMap propsOverride = new HashMap();
 
             for(int i = 0; i < args.length; i++) {
-                if(args[i].equals("-q")) {
-                    test_login = true;
-                } else if(args[i].equals("--url")) {
-                    bofhd_url = args[++i];
-                } else if(args[i].equals("--gui")) {
-                    gui = true;
-                } else if(args[i].equals("--nogui")) {
-                    gui = false;
-                } else if(args[i].equals("-u")) {
-                    uname = args[++i];
-                } else if(args[i].equals("--set")) {
-                    String tmp = args[++i];
-                    propsOverride.put(tmp.substring(0, tmp.indexOf('=')),
-                        tmp.substring(tmp.indexOf('=')+1));
-                } else if(args[i].equals("-d")) {
-                    log4jPropertyFile = "/log4j.properties";
-                } else {
-                    System.out.println(
-                        "Usage: ... [-q | --url url | --gui | --nogui | -d]\n"+
-                        "-q : internal use only\n"+
-                        "-u uname : connect as the given user\n"+
-                        "--url url : connect to alternate server\n"+
-                        "--gui : start with primitive java gui\n"+
-                        "--nogui : start in console mode\n"+
-                        "--set key=value: override settings in property file\n"+
-                        "-d : enable debugging");
-                    System.exit(1);
+                switch (args[i]) {
+                    case "-q":
+                        test_login = true;
+                        break;
+                    case "--url":
+                        bofhd_url = args[++i];
+                        break;
+                    case "--gui":
+                        gui = true;
+                        break;
+                    case "--nogui":
+                        gui = false;
+                        break;
+                    case "-u":
+                        uname = args[++i];
+                        break;
+                    case "--set":
+                        String tmp = args[++i];
+                        String allargs [] = tmp.split(",");
+                        int j;
+                        for (j=0; j < allargs.length; j++) {
+                            propsOverride.put(
+                               allargs[j].substring(0, allargs[j].indexOf('=')),
+                               allargs[j].substring(allargs[j].indexOf('=')+1));
+                        }
+                        break;
+                    case "-d":
+                        log4jPropertyFile = "/log4j.properties";
+                        break;
+                    default:
+                        System.out.println(
+                                "Usage: ... [-q | --url url | --gui | --nogui | -d]\n"+
+                                        "-q : internal use only\n"+
+                                        "-u uname : connect as the given user\n"+
+                                        "--url url : connect to alternate server\n"+
+                                        "--gui : start with primitive java gui\n"+
+                                        "--nogui : start in console mode\n"+
+                                        "--set key=value: override settings in property file\n"+
+                                        "-d : enable debugging");
+                        System.exit(1);
                 }
             }
             jb = new JBofh(gui, log4jPropertyFile, bofhd_url, propsOverride);

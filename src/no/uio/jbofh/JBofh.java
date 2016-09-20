@@ -623,7 +623,7 @@ public final class JBofh {
                 Object next_resp = e.next();
                 showResponse(cmd, next_resp, false, first);
                 if (e.hasNext()) {
-                    System.out.println();
+                    showMessage("\n",true);
                 }
                 if(hideRepeatedHeaders)
                     first = false;

@@ -189,8 +189,11 @@ public final class JBofhFrameImpl implements ActionListener, JBofhFrame {
         tfOutput.setEditable(false);
         tfOutput.setFont(new Font(""+jbofh.props.get("gui.font.name.outputwindow"),
                              Font.PLAIN, Integer.parseInt(""+jbofh.props.get("gui.font.size.outputwindow"))));
-        tfOutput.setBackground(Color.BLACK);
-        tfOutput.setForeground(Color.WHITE);
+        tfOutput.setBackground(new Color(Integer.parseInt(jbofh.props.get(
+                                    "gui.background.number.outputwindow")+"")));
+        
+        tfOutput.setForeground(new Color(Integer.parseInt(jbofh.props.get(
+                                    "gui.foreground.number.outputwindow")+"")));
         np.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.WEST;
@@ -204,7 +207,9 @@ public final class JBofhFrameImpl implements ActionListener, JBofhFrame {
         jframe.getContentPane().add(np, BorderLayout.SOUTH);
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
           .addKeyEventDispatcher((KeyEvent e) -> {
+            if (!(e.getKeyCode() == KeyEvent.VK_CONTROL)) {
               tfCmdLine.requestFocus();
+            }
               return false;
         });
 
@@ -284,6 +289,7 @@ public final class JBofhFrameImpl implements ActionListener, JBofhFrame {
      * @param msg
      * @param crlf
      */
+    @Override
     public void showMessage(String msg, boolean crlf) {
         tfOutput.append(msg);
         if(crlf) tfOutput.append("\n");
@@ -377,10 +383,10 @@ public final class JBofhFrameImpl implements ActionListener, JBofhFrame {
                 super.addNotify();
                 KeyboardFocusManager.getCurrentKeyboardFocusManager()
                    .addKeyEventDispatcher((KeyEvent e) -> {
-                this.requestFocusInWindow();
-                return false;
-                });
-              }
+                    this.requestFocusInWindow();
+              return false;
+        });
+        }
             };
             JOptionPane pane = new JOptionPane(pf, JOptionPane.QUESTION_MESSAGE,
                 JOptionPane.OK_CANCEL_OPTION);

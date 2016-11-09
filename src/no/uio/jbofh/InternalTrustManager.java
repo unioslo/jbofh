@@ -26,6 +26,7 @@
 
 package no.uio.jbofh;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
@@ -47,17 +48,27 @@ import javax.net.ssl.X509TrustManager;
 class InternalTrustManager implements X509TrustManager {
     static X509Certificate serverCert = null;
 
-    InternalTrustManager() throws IOException, CertificateException {
-        readServerCert();
+    InternalTrustManager(String cafile) throws IOException, CertificateException {
+        readServerCert(cafile);
     }
 
-    private void readServerCert() throws IOException, CertificateException {
+    private void readServerCert(String cafile) throws IOException,
+            CertificateException {
         X509Certificate cert;
-        try (InputStream inStream = 
+        CertificateFactory cf;
+        cf = CertificateFactory.getInstance("X.509");
+        if (cafile == null) {
+            try (   
+                InputStream inStream = 
                 ResourceLocator.getResource(this, "/cacert.pem").openStream()) {
-                CertificateFactory cf;
-                cf = CertificateFactory.getInstance("X.509");
                 cert = (X509Certificate)cf.generateCertificate(inStream);
+            }
+        } else { 
+        try (    
+            FileInputStream file = new FileInputStream(cafile)) {
+            cert = (X509Certificate)cf.generateCertificate(file);
+            }
+            
         }
         serverCert = cert;
     }

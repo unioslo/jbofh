@@ -67,7 +67,7 @@ public class BofhdConnection {
         System.setProperty("sax.driver", "com.jclark.xml.sax.Driver");
     }
 
-    void connect(String host_url, boolean use_int_trust) {
+    void connect(String host_url, boolean use_int_trust, String cafile) {
         //XmlRpc.setDebug(true);
         /*
           The SecurityTool overrides the default key_store and
@@ -86,7 +86,7 @@ public class BofhdConnection {
         */
         if(use_int_trust && host_url.startsWith("https:")) {
             try {
-                InternalTrustManager tm = new InternalTrustManager();
+                InternalTrustManager tm = new InternalTrustManager(cafile);
                 TrustManager []tma = {tm};
                 SSLContext sc = SSLContext.getInstance("SSL");  // TLS?
                 sc.init(null,tma, null);

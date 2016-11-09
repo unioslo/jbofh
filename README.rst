@@ -172,19 +172,23 @@ Requirements
 CA-certificates
 ----------------
 
-jBofh might include a valid ``cacerts.pem``-file in the jar-file, if it exists
-when running ``ant dist``. If this file is not included then, or if it needs to
+jBofh might include a valid ``cacert.pem``-file in the jar-file, if it existed
+when running ``ant dist``. If this file was not included then, or if it needs to
 be replaced, it can be added to the jar-archive later with the python script
-`fix_jbofh_jar.py`_.
+`fix_jbofh_jar.py`_. It is also possible to override the included cacert.pem
+with a file from outside the .jar package at runtime, by just adding the file
+with its system path as a value to the --ca argument on the command line
+(e.g. java -jar JBofh.jar --ca /tmp/new_cacert.pem).
 
 
 Settings
 ---------
 jBofh might include a valid ``jbofh.properties``-file in the jar-file, if it
-exists when running ``ant dist``. If this file is not included then, or if it
+existed when running ``ant dist``. If this file was not included then, or if it
 needs to be replaced, it can be added to the jar-archive later with the python
 script `fix_jbofh_jar.py`_. Furthermore it is possible to pass extra property
-parameters to the commadline when running JBofh.jar .
+parameters to the commad line when running JBofh.jar with --set argument at
+runtime.
 
 
 fix_jbofh_jar.py

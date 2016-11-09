@@ -68,11 +68,12 @@ public final class JBofh {
      * @param log4jPropertyFile
      * @param bofhd_url
      * @param propsOverride
+     * @param cafile
      * @throws no.uio.jbofh.BofhdException
      */
     @SuppressWarnings("unchecked")
     public JBofh(boolean gui, String log4jPropertyFile, String bofhd_url,
-        HashMap propsOverride) throws BofhdException {
+        HashMap propsOverride, String cafile) throws BofhdException {
         guiEnabled = gui;
         loadPropertyFiles(log4jPropertyFile);
         for (Iterator e = (propsOverride.keySet().iterator()) ;
@@ -102,7 +103,8 @@ public final class JBofh {
         String intTrust = (String) props.get("InternalTrustManager.enable");
         if(bofhd_url == null) bofhd_url = (String) props.get("bofhd_url");
         showMessage("Bofhd server is at "+bofhd_url, true);
-        bc.connect(bofhd_url, (intTrust != null && intTrust.equals("true")));
+        bc.connect(bofhd_url, (intTrust != null && intTrust.equals("true")),
+                    cafile);
         String intHide =  (String) props.get("HideRepeatedReponseHeaders");
         hideRepeatedHeaders = (intHide != null && intHide.equals("true")
                 );
@@ -727,6 +729,7 @@ public final class JBofh {
         JBofh jb = null;
         try {
             String bofhd_url = null;
+            String cafile = null;
             boolean test_login = false;
             String log4jPropertyFile = "/log4j_normal.properties";
             HashMap propsOverride = new HashMap();
@@ -761,20 +764,26 @@ public final class JBofh {
                     case "-d":
                         log4jPropertyFile = "/log4j.properties";
                         break;
+                    case "--ca":
+                        cafile = args[++i];
+                        break;
                     default:
                         System.out.println(
-                                "Usage: ... [-q | --url url | --gui | --nogui | -d]\n"+
-                                        "-q : internal use only\n"+
-                                        "-u uname : connect as the given user\n"+
-                                        "--url url : connect to alternate server\n"+
-                                        "--gui : start with primitive java gui\n"+
-                                        "--nogui : start in console mode\n"+
-                                        "--set key=value: override settings in property file\n"+
-                                        "-d : enable debugging");
+                            "Usage: ... [-q | --url url | --gui | --nogui | -d]\n"+
+                                    "-q : internal use only\n"+
+                                    "-u uname : connect as the given user\n"+
+                                    "--url url : connect to alternate server\n"+
+                                    "--gui : start with primitive java gui\n"+
+                                    "--nogui : start in console mode\n"+
+                                    "--set key=value: override settings in property file\n"+
+                                    "--ca cafile : explicitly provide path and "
+                                    + "file name of a CA certificate file\n" +
+                                    "-d : enable debugging");
                         System.exit(1);
                 }
             }
-            jb = new JBofh(gui, log4jPropertyFile, bofhd_url, propsOverride);
+            jb = new JBofh(gui, log4jPropertyFile, bofhd_url, propsOverride,
+                            cafile);
             if(test_login) {
                 jb.initialLogin("bootstrap_account", "test");
                 // "test" md5: $1$F9feZuRT$hNAtCcCIHry4HKgGkkkFF/

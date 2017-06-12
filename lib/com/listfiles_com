@@ -72,3 +72,4 @@ com/jclark/xml/output/XMLWriter.java
 com/jclark/xml/output/UTF8XMLWriter.java
 com/jclark/xml/output/SyncXMLWriter.java
 com/jclark/util/Hashtable.java
+com/camick/SmartScroller.java

@@ -625,7 +625,14 @@ public final class JBofh {
                 Object next_resp = e.next();
                 showResponse(cmd, next_resp, false, first);
                 if (e.hasNext()) {
-                    showMessage("\n",true);
+                    /* This is intended to enhance the visibility under multiple
+                     * commands and as wished under the previous in line
+                     * commentary. The \t on the other hand is to
+                     * avoid being filtered out by the overridden
+                     * showMessage@JBofhFrameImpl for the GUI, a less elegant
+                     *.but very efficient way until the TBD above is resolved.
+                     */
+                    showMessage("\n\t",true);
                 }
                 if(hideRepeatedHeaders)
                     first = false;

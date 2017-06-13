@@ -999,7 +999,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             /* Workaround a weird bug where the ComboBox strips out the carriage
                return sometimes and for unexplained reasons!
             */
-            tfCmdLine.setText(getCmdLineText() + " ");
+            tfCmdLine.setText(getCmdLineText() + "\n");
             return;
         }
         synchronized (combo.getTreeLock()) {

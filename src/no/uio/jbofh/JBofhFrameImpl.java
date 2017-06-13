@@ -569,8 +569,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                 tmp.length() > 0) {
                                         try {
                                             int tmp2 = (int) (tmp.charAt(0));
-                                            if ((tmp2 != 117 && tmp2 != 18 &&
-                                                 tmp2 != 6 && tmp2 != 1)
+                                            if ((tmp2 > 32)
                                                          || (tmp.length() > 1)){
                                                 System.out.println(tmp2);
                                                 tfCmdLine.setText(tmp);
@@ -1000,7 +999,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             /* Workaround a weird bug where the ComboBox strips out the carriage
                return sometimes and for unexplained reasons!
             */
-            tfCmdLine.setText(getCmdLineText() + "\n");
+            tfCmdLine.setText(getCmdLineText() + " ");
             return;
         }
         synchronized (combo.getTreeLock()) {

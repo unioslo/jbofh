@@ -69,10 +69,12 @@ JLine module (jline.jar):
 
    jar cvfM jline.jar jline/{*.class,*.properties,*.html}
 
-  -Remove the generated \*.class files under 'jline/'.
+  -Remove the generated \*.class files under 'jline/' by probably running::
+
+   find jline/ -name '*.class' -exec rm {} \;
 
 
-XP and PrintFormat modules (com.jar):
+XP, PrintFormat and SmartScroller modules (com.jar):
 
  -Used the following downloaded versions respectively:
 
@@ -83,8 +85,12 @@ XP and PrintFormat modules (com.jar):
    http://www.public.asu.edu/~kintigh/simulation/PrintfFormat.java
    for PrintFormat, with one trivial amendement around line 29 in order to
    reflect the package structure (commented in the file as well).
+  -Only version existing from:
+   http://www.camick.com/java/source/SmartScroller.java via:
+   https://tips4java.wordpress.com/2013/03/03/smart-scrolling/
 
- -Software license type: 'private' (in fact for both).
+ -Software license type: 'private' (in fact for the first 2 and somehow
+  implicitly permissive  and probably private for the last one).
   XP is from the owner of the website jclark.com and is open for free usage and
   redistribution as detailed in the terms of the author in the file that is
   included in here: 'com/jclark/jclark.com.xml.xp.copying.txt'.
@@ -92,6 +98,12 @@ XP and PrintFormat modules (com.jar):
   Sun Microsystems existed and owned the development and maintenance of all
   the Java core modules. The license is summarized in the header of the source
   file 'com/sun/java/text/PrintfFormat.java'.
+  For SmartScroller this has no explicit license but like most of the code that
+  is open on the tips4java.wordpress.com the code there is mainly for
+  educational purposes and only meant to teach people to code in Java, the
+  author had even explicitly said it about his own contributions:
+  https://tips4java.wordpress.com/2008/11/06/wrap-layout/#comment-1284 giving
+  the implicit authorization to use and modify the code however one wishes!
 
  -Compile and pack com.jar:
 
@@ -104,11 +116,12 @@ XP and PrintFormat modules (com.jar):
   -Run the following one line command:
    +-----------------------------------------------------------------------+
    |jar cvfM com.jar com/{jclark/{util/,xml{/,/apps/,/output/,/parse/,/tok\|
-   |/}},sun/java/text/}*.class                                             |
+   |/}},sun/java/text/,camick/}*.class                                     |
    +-----------------------------------------------------------------------+
 
-  -Remove the generated \*.class files under 'com/'.
+  -Remove the generated \*.class files under 'com/' by probably running::
 
+   find com/ -name '*.class' -exec rm {} \;
 
 Apache modules (org.jar):
 
@@ -158,7 +171,9 @@ Apache modules (org.jar):
    |xmlrpc/client/XmlRpcClient.properties}}                                  |
    +-------------------------------------------------------------------------+
 
-  -Remove the generated \*.class files under 'org/'.
+  -Remove the generated \*.class files under 'org/' by probably running::
+
+   find org/ -name '*.class' -exec rm {} \;
 
 
 Requirements
@@ -269,6 +284,68 @@ The basic and default usage of jBofh starts with running::
 Change Log
 ==========
 
+Changes and improvements with version 1.0.0
+-------------------------------------------
+- Major changes to the JBofhFrameImpl.java (in other words the Java module that
+  stands back the GUI interface of JBofh). Changes that introduce new
+  functinalities in regards to having the JComboBox included for easier history
+  search of the commands executed earlier. Legacy is preserved with the use of
+  the configuration parameter 'disableCombo=true'.
+- List of technical changes in the JBofhFrameImpl and therfore in the GUI:
+
+ - Upgrade to the JTextPane as a replacement to the JTextArea which implies the
+   availability of different colors, styles and highlights on the display area.
+ - Support for the 'systemLookAndFeel' parameter which if enabled with the 
+    'true' value would yield a GUI style that is mostly like the GUI style of
+    the OS desktop environment. All styles (fonts, colours and sizes) are not
+    supported though with the systemLookAndFeel parameter enabled and would be
+    overridden if specified in the configuration and not supported by the
+    operating system natively.
+ - Implementation of the Java ComboBox on top of the previously implemented
+   Java TextField. Important modifications were brought in to the default
+   behavior of the JComboBox, mainly to the fact that it will always display
+   on the top of the editable JTextField with all the modifications that might
+   implicitly include where the least tom mention is forcing the scroll bar of
+   the JTextPane to always reset to the bottom not allowing a vacuum distance
+   to the CmdLine that might include output text hidden by the ComboBox.
+   The JComboBox is enabled in the 4 following manners:
+
+  - Explicitly, by right clicking the mouse and then left clicking the option
+    "Get cmd hist". By left clicking the menu arrow of the ComboBox. Also
+    relatively explicit whilst focused on the CmdLine (or when simply typing)
+    and the keyboard key combination shortcut "Ctrl + R" is pressed.
+  - Implicitly whilst focused on the CmdLine or when typing and then the
+    keyboard either UP or DOWN arrow keys (↑ or ↓) are hit.
+
+ - The automatic focus mechanisms to the various window components has been
+   drastically enhanced, allowing the use of the GUI windows, keyboard short-
+   -cuts in a seemless manner.
+ - The right mouse context menu includes 7 additinal options with their related
+   shortcuts that allow visualizing old and new funcitonalities for handling
+   data from the output and input areas of the GUI.
+ - An important option among the 7 options mentioned above on the context menu
+   and that is introduced with this version is the search functionality through
+   the text displayed in the output area. That, could be initiated with a mouse
+   click or with the keyboard combination key shortcut: "Ctrl + F" when focused
+   on the CmdLine.
+ - Text highlights is another important enhancement brought in the GUI, it has
+   been nevertheless decided to limit it to permuting the background colour and
+   the foreground colour for the highlighted area, and that in order not to
+   make the GUI very flashy.
+   Highlights are activated under 2 circumstances: first displaying the search
+   strings when ordered so and second when the ComboBox is implicitly activated
+   from the keyboard (to explain for the user what is going on).
+   Highlights are removed in 2 cases: Implicityl when a new search string is
+   entered, the highlights are removed from all previous highlights in the GUI,
+   explicitly when right clicking the mouse and then left clicking the option
+   "Clear highlights". That latter option would not only remove all highlights
+   but would permanently delete as well all instances of those message texts
+   from within the output area:
+   "- POP-UP MENU BOX FOR COMMAND HISTORY ACTIVE -
+   To disable: click outside or validate (hit <┘) - "\"Clear highlights\"
+   right-mouse-click option clears those messages"
+   [TODO CONTINUE WITH CHANGELOG INLINE DOCUMENTATIONS BEFORE MERGE IN MASTER]
+
 Changes and improvements with version 0.9.9
 -------------------------------------------
 
@@ -284,6 +361,10 @@ Changes and improvements with version 0.9.9
   commas like that::
 
    bofh --gui --set gui.font.size.outputwindow=9,gui.font.name.outputwindow=Sans
+
+   or to run the UiO TSD instance:
+   bofh --url https://tsd-cere-prod01.tsd.usit.no:8000 --set console_prompt=
+   "tsd-jbofh> "
 
 - JBofh trims blanks at the end of the command now before sending them over to
   the XMLRPC daemon.

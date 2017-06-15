@@ -571,6 +571,11 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                             int tmp2 = (int) (tmp.charAt(0));
                                             if ((tmp2 > 32)
                                                          || (tmp.length() > 1)){
+                                                /* Needed to debug a weird
+                                                  behavior where the cmdline
+                                                  is presented with an "empty"
+                                                  character at popup menu init
+                                                 */
                                                 System.out.println(tmp2);
                                                 tfCmdLine.setText(tmp);
                                             } else {
@@ -599,6 +604,16 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                         }
                                     }
                                     if (selection.length > 0) {
+                                        /* The extra space is primarily to
+                                           workaround a weird bug where the
+                                           ComboBox strips out the carriage
+                                           return randomly and for unexplained
+                                           reasons, but also for extra
+                                           convenience for the user while
+                                           reediting the history if ever needed.
+                                         */
+                                        tfCmdLine.setText(getCmdLineText() +
+                                                                           " ");
                                         comboBox.repaint();
                                     }
                                 }
@@ -687,6 +702,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
     /**
      * Implementation of a JTextPane search functionality via JOptionPane.
      * Including own simplified JComboBox to retain the search history.
+     * @throws no.uio.jbofh.MethodFailedException
      */
     public void searchString() throws MethodFailedException {
             JComboBox<String> searchCombo = new
@@ -730,23 +746,28 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
         if(crlf) {
             try {
                 int docLength = tfOutput.getDocument().getLength();
-                // Remove the annoying extra trailing "jbofh>" from the output.
-                if (docLength > 10) {
-                    if (tfOutput.getDocument().getText(docLength - 10, 10).
-                                                          contains("jbofh> ")) {
+                // Remove the annoying extra trailing prompt from the output.
+                String prompt = (String) jbofh.props.get("console_prompt");
+                if (docLength > prompt.length()) {
+                    if (tfOutput.getDocument().getText(docLength - prompt.
+                           length()- 3, prompt.length() + 3).contains(prompt)) {
                         /*
                           TODO: Those 2 statements can be in own function as
                                 they are reused in the next "else if" condition.
                         */
-                        tfOutput.getDocument().remove(docLength - 8, 8);
+                        tfOutput.getDocument().remove(docLength - prompt.
+                                                      length() -1, prompt.
+                                                                   length() +1);
                         tfOutput.getDocument().insertString(tfOutput.
                                                             getDocument().
                                                             getLength(), "\n",
                                                                       styleOri);
                     }
                 } else if (tfOutput.getDocument().getText(0,docLength).
-                                                          contains("jbofh> ")) {
-                    tfOutput.getDocument().remove(docLength - 8, 8);
+                                                             contains(prompt)) {
+                    tfOutput.getDocument().remove(docLength - prompt.
+                                                      length() -1, prompt.
+                                                                   length() +1);
                     tfOutput.getDocument().insertString(tfOutput.getDocument().
                                                         getLength(), "\n",
                                                                       styleOri);
@@ -996,10 +1017,6 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
      */
     protected void releaseLock() {
         if(! isBlocking) {
-            /* Workaround a weird bug where the ComboBox strips out the carriage
-               return sometimes and for unexplained reasons!
-            */
-            tfCmdLine.setText(getCmdLineText() + "\n");
             return;
         }
         synchronized (combo.getTreeLock()) {
@@ -1059,9 +1076,12 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
 			        document.insertString(
 				    document.getLength(), popupMenuMessage,
 								      styleNew);
+				// Workaround a bug where everything afterwards might get highlighted.
+				document.insertString(document.getLength() + 1,
+							    "\t\t\t", styleOri);
 				int endindex = document.getLength();
 				hilit.addHighlight(endindex - popupMenuMessage.
-					length() + 4, endindex - 1, painter);
+					length() + 4, endindex - 5, painter);
 				} catch (BadLocationException ex) {
 					Logger.getLogger(
 						JBofhFrameImpl.class.getName()).
@@ -1221,10 +1241,12 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
 					    if (hlite == true) {
 					        hilit.addHighlight(index, index +
 						    str.length(), painter);
-						// Workaround a bug where everything gets highlighted afterwards.
-						doc.insertString(index + str.
-							length() + 1 , "\t",
-							styleOri);
+						// Workaround a bug where everything afterwards might get highlighted.
+						if ((docContent.length() -
+						      index - str.length() - 1) < 3){
+							doc.insertString(docContent.length() + 1 , "\t\t\t",
+								styleOri);
+						}
 					    }
 					} catch (BadLocationException e) {
 					}

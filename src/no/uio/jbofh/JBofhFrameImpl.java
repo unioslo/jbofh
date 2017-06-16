@@ -210,7 +210,6 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                                common.length());
                             for(int n = 0; n < minLen; n++) {
                                 if(tmp.charAt(n) != common.charAt(n)) {
-                                    //System.out.println(n+" "+tmp+" "+common);
                                     common = common.substring(0, n);
                                     break;
                                 }
@@ -570,7 +569,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                         try {
                                             int tmp2 = (int) (tmp.charAt(0));
                                             if ((tmp2 > 32)
-                                                         || (tmp.length() > 1)){
+                                                         && (tmp.length() > 1)){
                                                 /* Needed to debug a weird
                                                   behavior where the cmdline
                                                   is presented with an "empty"
@@ -614,6 +613,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                          */
                                         tfCmdLine.setText(getCmdLineText() +
                                                                            " ");
+                                        vkenter = 4;
                                         comboBox.repaint();
                                     }
                                 }
@@ -748,7 +748,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                 int docLength = tfOutput.getDocument().getLength();
                 // Remove the annoying extra trailing prompt from the output.
                 String prompt = (String) jbofh.props.get("console_prompt");
-                if (docLength > prompt.length()) {
+                if ((docLength - 2) > prompt.length()) {
                     if (tfOutput.getDocument().getText(docLength - prompt.
                            length()- 3, prompt.length() + 3).contains(prompt)) {
                         /*

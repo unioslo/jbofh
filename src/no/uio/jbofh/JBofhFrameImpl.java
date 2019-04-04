@@ -28,6 +28,7 @@ package no.uio.jbofh;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
@@ -66,7 +67,6 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -87,6 +87,7 @@ import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.plaf.basic.BasicComboPopup;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultStyledDocument;
+import javax.swing.text.JTextComponent;
 import javax.swing.text.Keymap;
 import javax.swing.text.Style;
 import javax.swing.text.StyleConstants;
@@ -119,7 +120,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
     //Hit counters for keyboard key hits
     int kb, vkenter;
 
-    JLabel lbPrompt;
+    JButton lbPrompt;
     JFrame jframe;
     private boolean isBlocking = false;
     private boolean wasEsc = false;
@@ -139,7 +140,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
     // Declaration of the prompt line JComboBox specific variabels
     static String[] cmdLineStrngArr = {"",};
     JComboBox<String> combo = drawComboBox(cmdLineStrngArr);
-    public JTextField tfCmdLine = 
+    public JTextField tfCmdLine =
         (JTextField) combo.getEditor().getEditorComponent();
     private final JComboBox<String> comboBox;
     String popupMenuMessage = "\n\t\t- POP-UP MENU BOX FOR COMMAND HISTORY" +
@@ -162,7 +163,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
         public MyKeyAction(String name) {
             super(name);
         }
-        
+
         public void actionPerformed(ActionEvent e) {
             if("esc".equals(getValue(Action.NAME)) ||
             // Same action triggered by the same key combination Ctrl-D
@@ -188,8 +189,8 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                 StringBuilder suggestions = new StringBuilder();
                 int nlines = 1;
                 jbofh.bcompleter.complete(
-                        getCmdLineText(), 
-                        tfCmdLine.getCaret().getDot(), 
+                        getCmdLineText(),
+                        tfCmdLine.getCaret().getDot(),
                         completions);
                 switch (completions.size()) {
                     case 1:
@@ -329,7 +330,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
         np.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.WEST;
-        np.add(lbPrompt = new JLabel(), gbc);
+        np.add(lbPrompt = new JButton(), gbc);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.weightx = 1.0;
@@ -399,15 +400,16 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                             tfCmdLine.setText(tmp.trim());
                         }
                         vkenter++;
-                    }
                 }
+            }
                 return false;
         });
 
         // We want control over some keys used on tfCmdLine
         tfCmdLine.setFocusTraversalKeysEnabled(false);
-        Keymap keymap = JTextField.addKeymap("MyBindings", tfCmdLine.getKeymap());
-        keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), 
+        Keymap keymap = JTextField.addKeymap("MyBindings",
+                                                         tfCmdLine.getKeymap());
+        keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0),
             new MyKeyAction("tab"));
         if (disableCombo) { // Skip that if the GUI is started without ComboBox
             keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.
@@ -417,7 +419,8 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                                             0),
                     new MyKeyAction("up"));
         }
-        keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), 
+        keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE,
+                                                                            0),
             new MyKeyAction("esc"));
         keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_U, 
                                          java.awt.event.InputEvent.CTRL_MASK), 
@@ -451,6 +454,16 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
         }
         MouseListener popupListener = new PopupListener();
         tfOutput.addMouseListener(popupListener);
+
+        MouseListener promptButtonListener = new MouseAdapter() {
+                public void mouseReleased(MouseEvent mouseEvent) {
+                        if (SwingUtilities.isLeftMouseButton(mouseEvent)) {
+                                getCmdLineText();
+                                releaseLock();
+                        }
+                }
+        };
+        lbPrompt.addMouseListener(promptButtonListener);
 
         jframe.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent e) {
@@ -560,6 +573,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                      getSelectedIndex());
                                     Point location = getPopupLocation();
                                     show( comboBox, location.x, location.y );
+                                    vkenter = 5;
                                     // Now, try cleaning the CmdLine from noise.
                                     String tmp = getCmdLineText();
                                     if (!"".equals(tmp) ||
@@ -570,21 +584,20 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                             int tmp2 = (int) (tmp.charAt(0));
                                             if ((tmp2 > 32)
                                                          && (tmp.length() > 1)){
-                                                /* Needed to debug a weird
+                                                tfCmdLine.setText(tmp);
+                                            } else {
+                                                /* Needed to counter a weird
                                                   behavior where the cmdline
                                                   is presented with an "empty"
                                                   character at popup menu init
                                                  */
-                                                System.out.println(tmp2);
-                                                tfCmdLine.setText(tmp);
-                                            } else {
                                                 tfCmdLine.setText("");
                                             }
                                         } catch (StringIndexOutOfBoundsException
                                                  ex) {}
                                     } else tfCmdLine.setText("");
+                                    }
                                 }
-                            }
                             @Override
                             public void hide() {
                                 /* The only way to have control over automatic
@@ -603,16 +616,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                         }
                                     }
                                     if (selection.length > 0) {
-                                        /* The extra space is primarily to
-                                           workaround a weird bug where the
-                                           ComboBox strips out the carriage
-                                           return randomly and for unexplained
-                                           reasons, but also for extra
-                                           convenience for the user while
-                                           reediting the history if ever needed.
-                                         */
-                                        tfCmdLine.setText(getCmdLineText() +
-                                                                           " ");
+                                        getCmdLineText();
                                         vkenter = 4;
                                         comboBox.repaint();
                                     }
@@ -827,7 +831,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             combo.requestFocusInWindow();
             combo.addNotify();
             combo.setPopupVisible(!disableCombo);
-            } else if (shouldPopup == false) {
+        } else if (shouldPopup == false) {
             combo.requestFocusInWindow();
             combo.hidePopup();
         }
@@ -844,31 +848,32 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                     if(addHist && disableCombo){
                         if((text.length() > 0) &&
                             ! (cmdLineHistory.size() > 0 &&
-                                text.equals(cmdLineHistory.get(cmdLineHistory.size()-1)))) {
+                                text.equals(cmdLineHistory.get(cmdLineHistory.
+                                                                  size()-1)))) {
                             cmdLineHistory.add(text);
                         }
                         historyLocation = cmdLineHistory.size();
                     } else {
                         // History in the ComboBox should be tidyer.
                         for (int i = 0; i<cmdLineStrngArr.length;i++) {
-                            if (cmdLineStrngArr[i].equalsIgnoreCase(
+                            if ((cmdLineStrngArr[i].trim()).equalsIgnoreCase(
                                     text.trim()) && !("".equals(text.trim()))) {
-                                if (i > 1) {
-                                    String[] swapArr =
-                                        new String[cmdLineStrngArr.
-                                        length];
-                                    System.arraycopy(
-                                        cmdLineStrngArr, i,
-                                        swapArr, i,
-                                        cmdLineStrngArr.
-                                            length-i);
-                                    System.arraycopy(
-                                        cmdLineStrngArr, 1,
-                                        swapArr, 2, i-1);
-                                    swapArr[0] = "";
-                                    swapArr[1] = text.trim();
-                                    cmdLineStrngArr = swapArr;
-                                }
+                                        if (i > 1) {
+                                            String[] swapArr =
+                                                     new String[cmdLineStrngArr.
+                                                                        length];
+                                            System.arraycopy(
+                                               cmdLineStrngArr, i,
+                                               swapArr, i,
+                                               cmdLineStrngArr.
+                                               length-i);
+                                            System.arraycopy(
+                                                cmdLineStrngArr, 1,
+                                                swapArr, 2, i-1);
+                                            swapArr[0] = "";
+                                            swapArr[1] = (text.trim() + " ");
+                                            cmdLineStrngArr = swapArr;
+                                        }
                                 historyMatched = true;
                             }
                         }
@@ -898,7 +903,7 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                 if (!tmpCmpl.isEmpty()) {
                                     cmdLineStrngArr =
                                         updateStrngArr(cmdLineStrngArr);
-                                    cmdLineStrngArr[1] = text.trim();
+                                    cmdLineStrngArr[1] = (text.trim() + " ");
                                 }
                             }
                         }
@@ -949,67 +954,67 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                         clipboardText.length());
                         } else tfCmdLine.setText(clipboardText);
                 }
-	    }
-	    if (action.equals("copy_out")) {
-		StringSelection tmp =
-				new StringSelection(tfOutput.getSelectedText());
-		Clipboard tmp1 = Toolkit.getDefaultToolkit().
-				getSystemClipboard();
-		tmp1.setContents(tmp, null);
-	    }
-	    if (action.equals("clear_hilit")) {
-				tfOutput.setHighlighter(hilit);
-				searchReplaceString(popupMenuMessage, styleOri,
-						    document, false, true,
-						    false);
-	    }
-	    if (action.equals("get_hist")) {
-				combo.setPopupVisible(true);
-				tfCmdLine.setText("");
-	    }
-	    if (action.equals("find")) {
-		    try {
-			searchReplaceString(popupMenuMessage, styleOri,
-						    document, false, true,
-						    false);
-			    searchString();
-		    } catch (MethodFailedException ex) {
-			    Logger.getLogger(JBofhFrameImpl.class.getName()).
-				    log(Level.SEVERE, null, ex);
-		    }
-	    }
-	    if (action.equals("abort")) {
-		    wasEsc = true;
-		    releaseLock();
-	    }
-	    if (action.equals("clear_cmd")) {
-		    tfCmdLine.setText("");
-	    }
-	}
+            }
+            if (action.equals("copy_out")) {
+                StringSelection tmp =
+                                new StringSelection(tfOutput.getSelectedText());
+                Clipboard tmp1 = Toolkit.getDefaultToolkit().
+                                getSystemClipboard();
+                tmp1.setContents(tmp, null);
+            }
+            if (action.equals("clear_hilit")) {
+                                tfOutput.setHighlighter(hilit);
+                                searchReplaceString(popupMenuMessage, styleOri,
+                                                    document, false, true,
+                                                    false);
+            }
+            if (action.equals("get_hist")) {
+                                combo.setPopupVisible(true);
+                                tfCmdLine.setText("");
+            }
+            if (action.equals("find")) {
+                    try {
+                        searchReplaceString(popupMenuMessage, styleOri,
+                                                    document, false, true,
+                                                    false);
+                            searchString();
+                    } catch (MethodFailedException ex) {
+                            Logger.getLogger(JBofhFrameImpl.class.getName()).
+                                    log(Level.SEVERE, null, ex);
+                    }
+            }
+            if (action.equals("abort")) {
+                    wasEsc = true;
+                    releaseLock();
+            }
+            if (action.equals("clear_cmd")) {
+                    tfCmdLine.setText("");
+            }
+        }
     }
 
     /**
      * Check to see whether ready for release
      */
     protected void preRelease() {
-	    if (combo.isPopupVisible() && combo.getSelectedItem() != null) {
-		    if (!"".equals(combo.getItemAt(
-			    combo.getSelectedIndex())) &&
-				    (!"".equals(getCmdLineText()) ||
-					(!"".equals(getCmdLineText())) ||
-				            (!"".equals(getCmdLineText()))))
-			    {
-				    tfCmdLine.setText(combo.getItemAt(
-					    combo.getSelectedIndex()));
-				    vkenter = 4;
-				    actionReady = false;
-		    }
-		    jframe.requestFocusInWindow();
-		    shouldPopup = false;
-	    }
-	    else {
-			    actionReady = true;
-			    }
+            if (combo.isPopupVisible() && combo.getSelectedItem() != null) {
+                    if (!"".equals(combo.getItemAt(
+                            combo.getSelectedIndex())) &&
+                                    (!"".equals(getCmdLineText()) ||
+                                        (!"".equals(getCmdLineText())) ||
+                                            (!"".equals(getCmdLineText()))))
+                            {
+                                    tfCmdLine.setText(combo.getItemAt(
+                                            combo.getSelectedIndex()));
+                                    vkenter = 4;
+                                    actionReady = false;
+                    }
+                    jframe.requestFocusInWindow();
+                    shouldPopup = false;
+            }
+            else {
+                            actionReady = true;
+                            }
     }
     
     /**
@@ -1020,105 +1025,119 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             return;
         }
         synchronized (combo.getTreeLock()) {
-	    actionReady = false;
+            actionReady = false;
             isBlocking = false;
             EventQueue.invokeLater(() -> {
-	        historyMatched = false;
-	        emptyEnter = false;
-	        vkenter = 1;
+                historyMatched = false;
+                emptyEnter = false;
+                vkenter = 1;
                 /* Resetting the following keyboard hit counter which has a
                    crucial function allowing to delegate the keyboard focus on
                    the initial password dialog box as well as on the CmdLine
                    whenever focus is lost from the window and gained up again.
                  */
                 kb = 0;
-	        tfCmdLine.setText("");
+                tfCmdLine.setText("");
            });
            combo.getTreeLock().notifyAll();
         }
     }
 
-	@Override public void keyPressed(KeyEvent e) {
-		if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_F) {
-			try {
-				searchReplaceString(popupMenuMessage, styleOri,
-						    document, false, true,
-						    false);
-				searchString();
-			} catch (MethodFailedException ex) {
-				Logger.getLogger(JBofhFrameImpl.class.
-					getName()).log(Level.SEVERE, null, ex);
-			}
-		}
-		if ((e.isControlDown() && e.getKeyCode() == KeyEvent.VK_R) ||
-			(!combo.isPopupVisible() &&
-				e.getKeyCode() == KeyEvent.VK_UP) ||
-				(!combo.isPopupVisible() &&
-				e.getKeyCode() == KeyEvent.VK_DOWN)) {
-			if (disableCombo) {
-				if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-					combo.removeAllItems();
-					tfOutput.requestFocusInWindow();
-				}
-			}
-			else {
-			    shouldPopup = true;
-			    try {
-			        tfOutput.setHighlighter(hilit);
-			        int start = documentBackup.getLength();
-			        if (start > 0 && document.getLength() > start){
-					    document.replace(0,
-						    start,
-						    documentBackup.getText(0,
-						    documentBackup.getLength()),
-								    styleOri);
-					    }
-			        document.insertString(
-				    document.getLength(), popupMenuMessage,
-								      styleNew);
-				// Workaround a bug where everything afterwards might get highlighted.
-				document.insertString(document.getLength() + 1,
-							    "\t\t\t", styleOri);
-				int endindex = document.getLength();
-				hilit.addHighlight(endindex - popupMenuMessage.
-					length() + 4, endindex - 5, painter);
-				} catch (BadLocationException ex) {
-					Logger.getLogger(
-						JBofhFrameImpl.class.getName()).
-						log(Level.SEVERE, null, ex);
-			        }
-				combo.setPopupVisible(true);
-			}
-		}
-	}
+        @Override public void keyReleased(KeyEvent event) {
+                if (event.getKeyChar() == KeyEvent.VK_ENTER) {
+                    if (!((JTextComponent) ((JComboBox) ((Component) event
+                        .getSource()).getParent()).getEditor()
+                        .getEditorComponent()).getText().isEmpty() &&
+                            (vkenter > 4)) {
+                        emptyEnter = true;
+                        getCmdLineText();
+                        releaseLock();
+                    }
+                }
+             }
 
-	@Override
-	public void keyTyped(final KeyEvent e) {
-	    if ((actionReady == true) && (e.getKeyChar()=='\n')) {
-	      releaseLock();
-	   }
-	  EventQueue.invokeLater(() -> {
-		  String text = getCmdLineText();
-		  ComboBoxModel<String> m;
-		  List<String> list = Arrays.asList(cmdLineStrngArr);
-		  Collections.reverse(list);
-		  String[] swpStrngArr = list.toArray(new String[0]);
-		  if (text.isEmpty()) {
-			  m = new DefaultComboBoxModel<>(swpStrngArr);
-			  insertSuggestions(comboBox, m, "");
-			  Collections.reverse(list);
-		  } else {
-			  m = listSuggestions(list, text);
-			  if (m.getSize() == 0) {
-			  } else {
-				  int tmp = tfCmdLine.getCaretPosition();
-				  insertSuggestions(comboBox, m, text);
-				  tfCmdLine.setCaretPosition(tmp);
-			  }
-			  Collections.reverse(list);
-		  }
-	   });
-	}
+        @Override public void keyPressed(KeyEvent e) {
+                if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_F) {
+                        try {
+                                searchReplaceString(popupMenuMessage, styleOri,
+                                                    document, false, true,
+                                                    false);
+                                searchString();
+                        } catch (MethodFailedException ex) {
+                                Logger.getLogger(JBofhFrameImpl.class.
+                                        getName()).log(Level.SEVERE, null, ex);
+                        }
+                }
+                if ((e.isControlDown() && e.getKeyCode() == KeyEvent.VK_R) ||
+                        (!combo.isPopupVisible() &&
+                                e.getKeyCode() == KeyEvent.VK_UP) ||
+                                (!combo.isPopupVisible() &&
+                                e.getKeyCode() == KeyEvent.VK_DOWN)) {
+                        if (disableCombo) {
+                                if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                                        combo.removeAllItems();
+                                        tfOutput.requestFocusInWindow();
+                                }
+                        }
+                        else {
+                            shouldPopup = true;
+                            try {
+                                tfOutput.setHighlighter(hilit);
+                                int start = documentBackup.getLength();
+                                if (start > 0 && document.getLength() > start){
+                                            document.replace(0,
+                                                    start,
+                                                    documentBackup.getText(0,
+                                                    documentBackup.getLength()),
+                                                                    styleOri);
+                                            }
+                                document.insertString(
+                                    document.getLength(), popupMenuMessage,
+                                                                      styleNew);
+                                // Workaround a bug where everything afterwards
+                                // might get highlighted.
+                                document.insertString(document.getLength() + 1,
+                                                            "\t\t\t", styleOri);
+                                int endindex = document.getLength();
+                                hilit.addHighlight(endindex - popupMenuMessage.
+                                        length() + 4, endindex - 5, painter);
+                                } catch (BadLocationException ex) {
+                                        Logger.getLogger(
+                                                JBofhFrameImpl.class.getName()).
+                                                log(Level.SEVERE, null, ex);
+                                }
+                                combo.setPopupVisible(true);
+                        }
+                }
+        }
+
+        @Override
+        public void keyTyped(final KeyEvent e) {
+            if ((actionReady == true) && (e.getKeyChar()=='\n')) {
+              releaseLock();
+           }
+          EventQueue.invokeLater(() -> {
+                  String text = getCmdLineText();
+                  ComboBoxModel<String> m;
+                  List<String> list = Arrays.asList(cmdLineStrngArr);
+                  Collections.reverse(list);
+                  String[] swpStrngArr = list.toArray(new String[0]);
+                  if (text.isEmpty()) {
+                          m = new DefaultComboBoxModel<>(swpStrngArr);
+                          insertSuggestions(comboBox, m, "");
+                          Collections.reverse(list);
+                  } else {
+                          m = listSuggestions(list, text);
+                          if (m.getSize() == 0) {
+                          } else {
+                                  int tmp = tfCmdLine.getCaretPosition();
+                                  insertSuggestions(comboBox, m, text);
+                                  tfCmdLine.setCaretPosition(tmp);
+                          }
+                          Collections.reverse(list);
+                  }
+           });
+        }
 
     /**
      *
@@ -1175,120 +1194,127 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             JOptionPane.ERROR_MESSAGE);
     }
 
-	/**
-	 *
-	 * @param str the value of str
-	 * @param style the value of style
-	 * @param doc the value of doc
-	 * @param hlite whether search results would be highlighted or not
-	 * @param remove whether search results would be replaced by empty strng
-	 */
-	@SuppressWarnings("ReplaceAllDot")
-	private void searchReplaceString (String str, Style style,
-						DefaultStyledDocument doc,
-						Boolean hlite, Boolean remove,
-						Boolean backup) {
-		if (hlite == true) {
-			tfOutput.setHighlighter(hilit);
-			}
-		String docContent = " ";
-		try {
-		    docContent = doc.getText(0, doc.getLength());
-		    } catch (BadLocationException ex) {
-		    Logger.getLogger(JBofhFrameImpl.class.getName()).log(Level.
-					    SEVERE, null, ex);
-		    }
-		try {
-		    int start = documentBackup.getLength();
-		    if (start > 0 && doc.getLength() > start){
-					    doc.replace(0,
-						    start,
-						    documentBackup.getText(0,
-						    documentBackup.getLength()),
-								    styleOri);
-					    }
-		    if ((doc.getLength() > start) && backup == true) {
-			documentBackup.insertString(start, doc.getText(start,
-						doc.getLength()- start),
-						styleOri);
-		    }
-		} catch (BadLocationException ex) {
-		    Logger.getLogger(JBofhFrameImpl.class.getName()).log(Level
-			    .SEVERE, null, ex);
-		}
-			if ((docContent.contains(str)) && !(" ".equals(str)) &&
-				remove == false) {
-			    int index = docContent.indexOf(str, 0);
-				while (docContent.lastIndexOf(str) > index) {
-				    try {
-					    int end = index + str.length();
-					    doc.replace(index,
-						        str.length(),
-						        str, style);
-					    if (hlite == true) {
-						    hilit.addHighlight(index,
-							    end, painter);
-							index = docContent.
-							    indexOf(str, end);
-					    }
-				    } catch (BadLocationException e) {
-				    }
-				}
-				if (docContent.lastIndexOf(str) == index) {
-					try {
-					    doc.replace(index,
-					        str.length(), str, style);
-					    if (hlite == true) {
-					        hilit.addHighlight(index, index +
-						    str.length(), painter);
-						// Workaround a bug where everything afterwards might get highlighted.
-						if ((docContent.length() -
-						      index - str.length() - 1) < 3){
-							doc.insertString(docContent.length() + 1 , "\t\t\t",
-								styleOri);
-						}
-					    }
-					} catch (BadLocationException e) {
-					}
-				}
-			    }
-			if (remove == true) {
-				try {
-					doc.remove(0, doc.getLength());
-					doc.insertString(0, docContent.
-						replaceAll(Pattern.quote(str),
-							""), style);
-					documentBackup.remove(0, documentBackup.
-						getLength());
-					documentBackup.insertString(0, doc.
-						getText(0, doc.getLength()),
-						style);
-				} catch (BadLocationException ex) {
-					Logger.getLogger(JBofhFrameImpl.class.
-						getName()).log(Level.SEVERE,
-							null, ex);
-				}
-			}
-		releaseLock();
-		tfCmdLine.setText("");
+        /**
+         *
+         * @param str the value of str
+         * @param style the value of style
+         * @param doc the value of doc
+         * @param hlite whether search results would be highlighted or not
+         * @param remove whether search results would be replaced by empty strng
+         */
+        @SuppressWarnings("ReplaceAllDot")
+        private void searchReplaceString (String str, Style style,
+                                                DefaultStyledDocument doc,
+                                                Boolean hlite, Boolean remove,
+                                                Boolean backup) {
+                if (hlite == true) {
+                        tfOutput.setHighlighter(hilit);
+                        }
+                String docContent = " ";
+                try {
+                    docContent = doc.getText(0, doc.getLength());
+                    } catch (BadLocationException ex) {
+                    Logger.getLogger(JBofhFrameImpl.class.getName()).log(Level.
+                                            SEVERE, null, ex);
+                    }
+                try {
+                    int start = documentBackup.getLength();
+                    if (start > 0 && doc.getLength() > start){
+                                            doc.replace(0,
+                                                    start,
+                                                    documentBackup.getText(0,
+                                                    documentBackup.getLength()),
+                                                                    styleOri);
+                                            }
+                    if ((doc.getLength() > start) && backup == true) {
+                        documentBackup.insertString(start, doc.getText(start,
+                                                doc.getLength()- start),
+                                                styleOri);
+                    }
+                } catch (BadLocationException ex) {
+                    Logger.getLogger(JBofhFrameImpl.class.getName()).log(Level
+                            .SEVERE, null, ex);
+                }
+                        if ((docContent.contains(str)) && !(" ".equals(str)) &&
+                                remove == false) {
+                            int index = docContent.indexOf(str, 0);
+                                while (docContent.lastIndexOf(str) > index) {
+                                    try {
+                                            int end = index + str.length();
+                                            doc.replace(index,
+                                                        str.length(),
+                                                        str, style);
+                                            if (hlite == true) {
+                                                    hilit.addHighlight(index,
+                                                            end, painter);
+                                                        index = docContent.
+                                                            indexOf(str, end);
+                                            }
+                                    } catch (BadLocationException e) {
+                                    }
+                                }
+                                if (docContent.lastIndexOf(str) == index) {
+                                        try {
+                                            doc.replace(index,
+                                                str.length(), str, style);
+                                            if (hlite == true) {
+                                                hilit.addHighlight(index,
+                                                    index + str.length(),
+                                                    painter);
+                                                // Workaround a bug where
+                                                //everything afterwards might
+                                                // get highlighted.
+                                                if ((docContent.length() -
+                                                      index - str.
+                                                            length() - 1) < 3){
+                                                        doc.insertString(
+                                                            docContent.length()
+                                                                    + 1 ,
+                                                                "\t\t\t",
+                                                                styleOri);
+                                                }
+                                            }
+                                        } catch (BadLocationException e) {
+                                        }
+                                }
+                            }
+                        if (remove == true) {
+                                try {
+                                        doc.remove(0, doc.getLength());
+                                        doc.insertString(0, docContent.
+                                                replaceAll(Pattern.quote(str),
+                                                        ""), style);
+                                        documentBackup.remove(0, documentBackup.
+                                                getLength());
+                                        documentBackup.insertString(0, doc.
+                                                getText(0, doc.getLength()),
+                                                style);
+                                } catch (BadLocationException ex) {
+                                        Logger.getLogger(JBofhFrameImpl.class.
+                                                getName()).log(Level.SEVERE,
+                                                        null, ex);
+                                }
+                        }
+                releaseLock();
+                tfCmdLine.setText("");
     }
 
     private void insertSuggestions(JComboBox<String> comboBox,
-				    ComboBoxModel<String> mdl, String str) {
+                                    ComboBoxModel<String> mdl, String str) {
         comboBox.setModel(mdl);
         comboBox.setSelectedIndex(comboBox.getItemCount()-1);
         tfCmdLine.setText(str);
     }
     private ComboBoxModel<String> listSuggestions(List<String> localList,
-			    String text) {
+                            String text) {
         DefaultComboBoxModel<String> m = new DefaultComboBoxModel<>();
-	localList.forEach((s) -> {
-		if (s.startsWith(text)) {
-			m.addElement(s);
-		} else {
-			m.insertElementAt("", 0);
-			m.setSelectedItem("");
-		}	});
+        localList.forEach((s) -> {
+                if (s.startsWith(text)) {
+                        m.addElement(s);
+                } else {
+                        m.insertElementAt("", 0);
+                        m.setSelectedItem("");
+                }        });
         return m;
     }
 }

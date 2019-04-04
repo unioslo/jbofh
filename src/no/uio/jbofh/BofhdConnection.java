@@ -26,6 +26,7 @@
 
 package no.uio.jbofh;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -41,9 +42,12 @@ import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
 import java.net.URL;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
+import javax.net.ssl.TrustManagerFactory;
 
 /**
  *
@@ -67,7 +71,9 @@ public class BofhdConnection {
         System.setProperty("sax.driver", "com.jclark.xml.sax.Driver");
     }
 
-    void connect(String host_url, boolean use_int_trust, String cafile) {
+    void connect(String host_url, boolean use_int_trust, String cafile)
+                                                      throws KeyStoreException,
+                  NoSuchAlgorithmException, MalformedURLException, IOException {
         //XmlRpc.setDebug(true);
         /*
           The SecurityTool overrides the default key_store and
@@ -84,12 +90,21 @@ public class BofhdConnection {
             e.printStackTrace();
             }
         */
-        if(use_int_trust && host_url.startsWith("https:")) {
+        if(host_url.startsWith("https:")) {
             try {
-                InternalTrustManager tm = new InternalTrustManager(cafile);
-                TrustManager []tma = {tm};
                 SSLContext sc = SSLContext.getInstance("SSL");  // TLS?
+                if (use_int_trust) {
+                InternalTrustManager tm = new InternalTrustManager(cafile);
+                TrustManager[] tma = {tm};
                 sc.init(null,tma, null);
+                } else {
+                TrustManagerFactory trustManagerFactory = 
+                        TrustManagerFactory.getInstance(
+                                TrustManagerFactory.getDefaultAlgorithm());
+                trustManagerFactory.init((KeyStore)null);
+                TrustManager[] tma = trustManagerFactory.getTrustManagers();
+                sc.init(null,tma, null);
+                }
                 SSLSocketFactory sf1 = sc.getSocketFactory();
                 HttpsURLConnection.setDefaultSSLSocketFactory(sf1);
                 URL url = new URL(host_url);
@@ -107,7 +122,7 @@ public class BofhdConnection {
             config.setServerURL(new URL(host_url));
             xmlrpc.setConfig(config);
             // XmlRpc.setDebug(true);
-        } catch (Exception e) {
+        } catch (MalformedURLException e) {
             System.out.println(e.getMessage() + " Most probably Bad url '"
                     + host_url + "',"
                     + "check your property file");

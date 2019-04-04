@@ -276,9 +276,13 @@ The basic and default usage of jBofh starts with running::
     Providing the --help option would guide you further through different usage
     possibilities.
 
-    JBofh is supposed to have the properly signed certificate to communicate
+    JBofh is supposed to have a properly signed certificate to communicate
     with the default server defined in the properties' file or explicitly
-    mentioned on the command line otherwise it would fail once it is run.
+    mentioned on the command line otherwise it would fail once it is run
+    especially if the property 'InternalTrustManager.enable' is not set
+    to false and the target server doesn't have a valid certificate signed
+    by a publicly recognized root CA (and whose signatures are in general
+    included in the updated releases of openJDK and Oracle Java).
 
 
 Change Log
@@ -286,6 +290,13 @@ Change Log
 
 Changes and improvements with version 1.0.0
 -------------------------------------------
+
+- Major enhancement to the BofhdConnection.java module allowing it to use the
+  native JRE KeyStore which would make the use of the already defined
+  properties parameter 'InternalTrustManager.enable=false' finally possible
+  over encrypted communications, in practice that would mean that jBofh can
+  rely on server certificates signed by third parties.
+
 - Major changes to the JBofhFrameImpl.java (in other words the Java module that
   stands back the GUI interface of JBofh). Changes that introduce new
   functinalities in regards to having the JComboBox included for easier history
@@ -344,7 +355,9 @@ Changes and improvements with version 1.0.0
    "- POP-UP MENU BOX FOR COMMAND HISTORY ACTIVE -
    To disable: click outside or validate (hit <┘) - "\"Clear highlights\"
    right-mouse-click option clears those messages"
-   [TODO CONTINUE WITH CHANGELOG INLINE DOCUMENTATIONS BEFORE MERGE IN MASTER]
+
+   [TODO CONTINUE WITH CHANGELOG INLINE DOCUMENTATIONS INCLUDED AT THE TIME OF
+   MERGE OF THE BRANCH release_1_0 IN master]
 
 Changes and improvements with version 0.9.9
 -------------------------------------------

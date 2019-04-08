@@ -94,16 +94,18 @@ public class BofhdConnection {
             try {
                 SSLContext sc = SSLContext.getInstance("SSL");  // TLS?
                 if (use_int_trust) {
-                InternalTrustManager tm = new InternalTrustManager(cafile);
-                TrustManager[] tma = {tm};
-                sc.init(null,tma, null);
+                        InternalTrustManager tm =
+                                               new InternalTrustManager(cafile);
+                        TrustManager[] tma = {tm};
+                        sc.init(null,tma, null);
                 } else {
-                TrustManagerFactory trustManagerFactory = 
-                        TrustManagerFactory.getInstance(
-                                TrustManagerFactory.getDefaultAlgorithm());
-                trustManagerFactory.init((KeyStore)null);
-                TrustManager[] tma = trustManagerFactory.getTrustManagers();
-                sc.init(null,tma, null);
+                        TrustManagerFactory trustManagerFactory = 
+                                TrustManagerFactory.getInstance(
+                                     TrustManagerFactory.getDefaultAlgorithm());
+                        trustManagerFactory.init((KeyStore)null);
+                        TrustManager[] tma =
+                                         trustManagerFactory.getTrustManagers();
+                        sc.init(null,tma, null);
                 }
                 SSLSocketFactory sf1 = sc.getSocketFactory();
                 HttpsURLConnection.setDefaultSSLSocketFactory(sf1);

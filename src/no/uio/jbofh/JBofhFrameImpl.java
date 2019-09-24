@@ -809,7 +809,12 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
             Insets m = new Insets(0,0,100,0);
             tfOutput.setMargin(m);
         }
-        tfOutput.setCaretPosition(tfOutput.getText().length());
+        try {
+        tfOutput.setCaretPosition(tfOutput.getDocument().getLength());
+        } catch (IllegalArgumentException ex) {
+        // Tackle possible bug with Windows misinterpretation of EOL
+             tfOutput.setCaretPosition(tfOutput.getDocument().getLength() - 1);
+        }
     }
 
     /**

@@ -44,6 +44,8 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
 import com.sun.java.text.PrintfFormat;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Main class for the JBofh program.
@@ -70,10 +72,14 @@ public final class JBofh {
      * @param propsOverride
      * @param cafile
      * @throws no.uio.jbofh.BofhdException
+     * @throws java.security.KeyStoreException
+     * @throws java.security.NoSuchAlgorithmException
+     * @throws java.io.IOException
      */
     @SuppressWarnings("unchecked")
     public JBofh(boolean gui, String log4jPropertyFile, String bofhd_url,
-        HashMap propsOverride, String cafile) throws BofhdException {
+        HashMap propsOverride, String cafile) throws BofhdException,
+                      KeyStoreException, NoSuchAlgorithmException, IOException {
         guiEnabled = gui;
         loadPropertyFiles(log4jPropertyFile);
         for (Iterator e = (propsOverride.keySet().iterator()) ;
@@ -625,7 +631,14 @@ public final class JBofh {
                 Object next_resp = e.next();
                 showResponse(cmd, next_resp, false, first);
                 if (e.hasNext()) {
-                    showMessage("\n",true);
+                    /* This is intended to enhance the visibility under multiple
+                     * commands and as wished under the previous in line
+                     * commentary. The \t on the other hand is to
+                     * avoid being filtered out by the overridden
+                     * showMessage@JBofhFrameImpl for the GUI, a less elegant
+                     *.but very efficient way until the TBD above is resolved.
+                     */
+                    showMessage("\n\t",true);
                 }
                 if(hideRepeatedHeaders)
                     first = false;
@@ -721,9 +734,13 @@ public final class JBofh {
     }
     /**
      * @param args the command line arguments
+     * @throws java.security.KeyStoreException
+     * @throws java.security.NoSuchAlgorithmException
+     * @throws java.io.IOException
      */
     @SuppressWarnings({"unchecked", "null"})
-    public static void main(String[] args) {
+    public static void main(String[] args) throws KeyStoreException,
+                                         NoSuchAlgorithmException, IOException {
         boolean gui = JBofh.isMSWindows();
         String uname = System.getProperty("user.name");
         JBofh jb = null;

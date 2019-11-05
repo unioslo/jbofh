@@ -1,8 +1,9 @@
-============================
-jBofh - bofh client in Java
-============================
+=================================================================
+jBofh - Cerebrum administration tool in Java via the Bofhd daemon
+=================================================================
 
-jBofh is a Cerebrum end user client for the Cerebrum Bofhd daemon.
+jBofh or as commonly known as Bofh is a Cerebrum end user client for the
+Cerebrum Bofhd daemon.
 
 jBofh is written in Java and has been updated lately in order not to use
 obsolete Java classes directly from within its source code, but some effort
@@ -27,16 +28,17 @@ Building the required library JARs
 
 jBofh is dependent on 4 externally developped modules that are not part of the
 standard core JDK modules. In addition and by the time of writing jBofh uses old
-versions of those modules that are no longer maintained by their respective
-developpers as they have reached the End Of Life (EOL) cycle but fortunately
-the code is in open source and license by the authors is granted in order to
-redistribute freely (each module has its own license mantra and flavor such as
-Apache, GPL ... but all grant free copyright). In all cases  that should not
-stand in the way that Cerebrum and jBofh itself are fully licensed under GPL.
+versions of some of those modules that are no longer maintained by their
+respective developpers as they have reached the End Of Life (EOL) cycle but
+fortunately enough the code is in open source and, license by the authors, is
+granted in order to redistribute freely (each module has its own license mantra
+and flavor such as Apache, GPL ... but all of them grant free copyright). In all
+cases that should not prevent  Cerebrum and even jBofh itself from being fully
+licensedunder GPL.
 In fact, jBofh just uses those libraries, but we are including the code in here
-as an extra convenience and in order to better understand jBofh and better
-debug it in cases there would be issues with ambiguous root cause that might be
-originating from the underlying modules or external APIs.
+for the obsoleted libs as an extra convenience and in order to better understand
+jBofh and better debug it in cases there would be issues with ambiguous root
+cause that might be originating from the underlying modules or external APIs.
 
 The source code is therefore copied in here in a tree structure that is similar
 to the original structure in the classpath, the main purpose is not to loose the
@@ -157,9 +159,19 @@ Apache modules (org.jar):
 
   -Move to lib directory under the jBofh repository.
 
-  -Run::
+  -For a JDK version prior to 11 Run::
 
    javac @org/listfiles_org
+
+  -For JDK versions 11 and up, unfortunately the compilation process is a bit
+   more complicated and that is mostly due to licensing issues that Oracle
+   is imposing to parts of the Java code that is no longer considered as part
+   of the Standard Edition but rather of the Enterprise Edition. For JBofh
+   this was mainly relevant to the log4j module with a tiny dependency on an
+   external library that uses an Oracle EE functinality. That can be
+   substituted by the open source implementation of the JAXB found here
+   https://github.com/javaee/jaxb-v2 with those libraries appended to the
+   CLASSPATH of the compiler the previous command would work fine.
 
   -Run the following one line command:
    +-------------------------------------------------------------------------+
@@ -238,9 +250,9 @@ Runtime requirements
 ---------------------
 
 * jBofh requires the latest version of Java runtime available, at the time of
-  writing the stable Java version available is '8' and we have included bytecode
-  files for the libraries that were compiled with the OpenJDK version
-  '1.8.0_101', which means that if you try compiling and running JBofh with an
+  writing the stable Java version available is '13' and we have included
+  bytecode files for the libraries that were compiled with the OpenJDK version
+  '13.0.0.33', which means that if you try compiling and running JBofh with an
   older version of OpenJDK, by just using the provided library bytecodes that
   are packed in the JAR files under 'lib/' then you might face trouble and
   should rather compile all the bytecodes and pack them yourself according to
@@ -253,6 +265,10 @@ Runtime requirements
   compiled bytecodes run seemlessly, provided that you have the proper license
   from all parties, including the operating systems' vendors:
   https://docs.oracle.com/javase/8/docs/technotes/guides/deploy/packager.html
+  It is also quite possible that JBofh could use external libraries dynamically
+  and not at runtime but would then require a different compilation procedure,
+  and that would de facto restrain the binaries to only run natively on the
+  OS where they where compiled.
 
   PS: Even though jBofh is supposed to run seemlessly on all operating systems
   that run with a supported JVM, it is not tested and not known to be working

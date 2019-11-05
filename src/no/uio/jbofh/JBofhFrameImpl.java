@@ -370,8 +370,8 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                         (!(e.getKeyCode() == KeyEvent.KEY_TYPED))) &&
                         (!(tfCmdLine.hasFocus())) &&
                         (!((e.getKeyCode() == KeyEvent.VK_C) &&
-                        ((e.getModifiers() &
-                        KeyEvent.CTRL_MASK) !=
+                        ((e.getModifiersEx() &
+                        KeyEvent.CTRL_DOWN_MASK) !=
                         0)))) {
                         combo.requestFocusInWindow();
                     }
@@ -423,13 +423,13 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                                             0),
             new MyKeyAction("esc"));
         keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_U, 
-                                         java.awt.event.InputEvent.CTRL_MASK), 
+                                      java.awt.event.InputEvent.CTRL_DOWN_MASK),
             new MyKeyAction("clearline"));
         keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_D, 
-                                         java.awt.event.InputEvent.CTRL_MASK),
+                                      java.awt.event.InputEvent.CTRL_DOWN_MASK),
             new MyKeyAction("Ctrl-D"));
         keymap.addActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_L, 
-                                         java.awt.event.InputEvent.CTRL_MASK),
+                                      java.awt.event.InputEvent.CTRL_DOWN_MASK),
             new MyKeyAction("Ctrl-L"));
        tfCmdLine.setKeymap(keymap);
 
@@ -1101,8 +1101,8 @@ public final class JBofhFrameImpl extends KeyAdapter implements ActionListener,
                                                                       styleNew);
                                 // Workaround a bug where everything afterwards
                                 // might get highlighted.
-                                document.insertString(document.getLength() + 1,
-                                                            "\t\t\t", styleOri);
+                                document.insertString(document.getLength(),
+                                                      "\n\t\t\t", styleOri);
                                 int endindex = document.getLength();
                                 hilit.addHighlight(endindex - popupMenuMessage.
                                         length() + 4, endindex - 5, painter);

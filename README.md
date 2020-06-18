@@ -11,16 +11,43 @@ is indirectly dependent on (see _Building the required library
 JARs_).
 
 
-Building jBofh
---------------
+Building
+--------
 
-You can build the jBofh jar file by running:
+To build jBofh, first retrieve the necessary dependencies, assuming RHEL:
 
-	ant dist
+	# dnf install ant java-latest-openjdk
 
-in the root directory of this project, the JAR files for the libraries
-that jBofh uses should have been included, otherwise look at the
-following section.
+jBofh requires JDK 13 or newer, but at the time of writing the default
+RHEL JDK is 1.8.  You may optionally change the default runtime- and
+development environments to the latest that we just installed this way:
+
+	# alternatives --set java java-latest-openjdk.x86_64
+	# alternatives --set javac java-latest-openjdk.x86_64
+
+If you are on a different architecture than x86_64, you may list and
+configure the default alternative interactively this way:
+
+	# alternatives --config java
+	# alternatives --config javac
+
+jBofh uses ant(1) as its build system, which does not respect the chosen
+default javac alternative.  To build jBofh with ant using the latest JDK:
+
+	% JAVA_HOME=/lib/jvm/java ant dist
+
+If you did not update the default Java environment to the latest above,
+you may have to point `JAVA_HOME` to the specific directory where the
+latest bin/javac executable is on your system.
+
+You may choose to make the value of `JAVA_HOME` persistent by exporting
+the environment variable in your shell login script, or by modifying
+the system-wide /etc/java/java.conf.
+
+The standard build should produce a JAR archive (an “über JAR”)
+that includes the necessary runtime dependencies that jBofh requires.
+Should these not have been included, you may consult the following
+section.
 
 
 ### Building the required library JARs
@@ -187,14 +214,6 @@ respective authors.
   - Remove the generated .class files under org/ by probably running:
 
     	find org/ -name '*.class' -exec rm {} \;
-
-
-### Requirements
-
-- Ant (latest version) whether installed on your OS or embeded
-  in an IDE like NetBeans.
-
-- Latest OpenJDK or Oracle© JDK
 
 
 ### CA-certificates

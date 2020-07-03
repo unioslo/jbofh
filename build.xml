@@ -5,10 +5,10 @@
         JAVACMD=/usr/lib/kaffe/bin/kaffe ant -Dbuild.compiler=kjc -Dnogui dist
         JAVACMD=/local/j2sdk1.4/bin/java ant dist
     </description>
-  <!-- set global properties for this build -->
+
   <property location="src" name="src"/>
   <property location="build" name="build"/>
-  <property location="distrib" name="dist"/>
+  <property location="dist" name="dist"/>
   <property location="tmpdist" name="tmp"/>
   <property location="javadoc" name="doc"/>
 

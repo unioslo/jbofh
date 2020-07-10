@@ -16,7 +16,7 @@ Building
 
 To build jBofh, first retrieve the necessary dependencies, assuming RHEL:
 
-	# dnf install ant java-latest-openjdk
+	# dnf install ant java-latest-openjdk java-latest-openjdk-devel
 
 jBofh requires JDK 13 or newer, but at the time of writing the default
 RHEL JDK is 1.8.  You may optionally change the default runtime- and
